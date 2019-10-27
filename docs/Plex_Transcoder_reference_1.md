@@ -1,56 +1,57 @@
-# File "The.LEGO.Ninjago.Movie.2017.MULTI.1080p.BluRay.x264-VENUE-WwW.Zone-Telechargement.Ws.mkv"
+## File "The.LEGO.Ninjago.Movie.2017.MULTI.1080p.BluRay.x264-VENUE-WwW.Zone-Telechargement.Ws.mkv"
 
-## Start from begining of the file
+### Start from begining of the file
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 0 -noaccurate_seek -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[0]" -map 0:0 -codec:0 copy -map [0] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 256k -f dash -seg_duration 5 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 1 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -vsync cfr -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## Start from the middle of the file
+### Start from the middle of the file
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3565 -noaccurate_seek -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[0]" -map 0:0 -codec:0 copy -map [0] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 256k -f dash -seg_duration 5 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 714 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 160p
+### 160p
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3576 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=160:h=68[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 22 -maxrate:0 50k -bufsize:0 100k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=2:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3576+n_forced*8) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 135k -f dash -seg_duration 8 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 448 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 240p
+### 240p
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3584 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=318:h=134[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 23 -maxrate:0 180k -bufsize:0 360k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=2:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3584+n_forced*8) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 123k -f dash -seg_duration 8 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 449 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 328p
+### 328p
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3584 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=480:h=202[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 21 -maxrate:0 530k -bufsize:0 1060k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=2:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3584+n_forced*8) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 153k -f dash -seg_duration 8 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 449 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 480p
+### 480p
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3592 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=720:h=304[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 21 -maxrate:0 1260k -bufsize:0 2520k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=2:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3592+n_forced*8) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 159k -f dash -seg_duration 8 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 450 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 720p 2M
+### 720p 2M
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3592 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=720:h=304[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 19 -maxrate:0 1544k -bufsize:0 3088k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=2:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3592+n_forced*8) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 204k -f dash -seg_duration 8 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 450 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 720p 3M
+### 720p 3M
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3615 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=1278:h=538[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 23 -maxrate:0 2698k -bufsize:0 5396k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=0:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3615+n_forced*5) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 117k -f dash -seg_duration 5 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 724 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 720p 4M
+### 720p 4M
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3620 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=1278:h=538[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 21 -maxrate:0 3623k -bufsize:0 7246k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=0:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3620+n_forced*5) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 148k -f dash -seg_duration 5 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 725 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 1080p 8M
+### 1080p 8M
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3633 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=1920:h=808[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 22 -maxrate:0 7396k -bufsize:0 14792k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=0:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3633+n_forced*1) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 136k -f dash -seg_duration 1 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 3634 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 1080p 10M
+### 1080p 10M
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3641 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=1920:h=808[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 21 -maxrate:0 9261k -bufsize:0 18522k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=0:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3641+n_forced*1) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 164k -f dash -seg_duration 1 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 3642 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 1080p 12M
+### 1080p 12M
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3645 -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex [0:0]scale=w=1920:h=808[0];[0]format=pix_fmts=yuv420p|nv12[1] -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[2]" -map [1] -codec:0 libx264 -crf:0 19 -maxrate:0 10947k -bufsize:0 21894k -r:0 23.975999999999999 -preset:0 veryfast -x264opts:0 subme=0:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none -force_key_frames:0 expr:gte(t,3645+n_forced*1) -map [2] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 191k -f dash -seg_duration 1 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 3646 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## 1080p 20M (Quality selected > Original quality, Plex uses "Copy")
+### 1080p 20M (Quality selected > Original quality, Plex uses "Copy")
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3645 -noaccurate_seek -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[0]" -map 0:0 -codec:0 copy -map [0] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 256k -f dash -seg_duration 5 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 730 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-## Original (Direct stream)
+### Original (Direct stream)
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 3700 -noaccurate_seek -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[0]" -map 0:0 -codec:0 copy -map [0] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 256k -f dash -seg_duration 5 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 741 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
 
-|subme | crf | maxrate | bufsize | image size| Name|
-|--|--|--|--|--|--|
-| 2 | 22 | 50k | 100k | 160x68 | "160p"|
-| 2 | 23 | 180k | 360k | 318x134 | "240p"|
-|2 | 21 | 530k | 1060k | 480x202 | "328p"|
-|2 | 21 | 1260k | 2520k | 720x304 | "480p"|
-|2 | 19 | 1544k | 3088k | 720x304 | "720p 2M"|
-|0 | 23 | 2698k | 5396k | 1278x538 | "720p 3M"|
-|0 | 21 | 3623k | 7246k | 1278x538 | "720p 4M"|
-|0 | 22 | 7396k | 14792k | 1920x808 | "1080p 8M"|
-|0 | 21 | 9261k | 18522k | 1920x808 | "1080p 10M"|
-|0 | 19 | 10947k | 21894k | 1920x808 | "1080p 12M"|
+|audio quality|subme param| x264 crf | video maxrate | video bufsize | image resolution| name|
+|--|--|--|--|--|--|--|
+|135k| 2 | 22 | 50k | 100k | 160x68 | "160p"|
+|123k| 2 | 23 | 180k | 360k | 318x134 | "240p"|
+|153k|2 | 21 | 530k | 1060k | 480x202 | "328p"|
+|159k|2 | 21 | 1260k | 2520k | 720x304 | "480p"|
+|204k|2 | 19 | 1544k | 3088k | 720x304 | "720p 2M"|
+|117k|0 | 23 | 2698k | 5396k | 1278x538 | "720p 3M"|
+|148k|0 | 21 | 3623k | 7246k | 1278x538 | "720p 4M"|
+|136k|0 | 22 | 7396k | 14792k | 1920x808 | "1080p 8M"|
+|164k|0 | 21 | 9261k | 18522k | 1920x808 | "1080p 10M"|
+|191k|0 | 19 | 10947k | 21894k | 1920x808 | "1080p 12M"|
+|256k |N/A|N/A|N/A|N/A|N/A|Original|
