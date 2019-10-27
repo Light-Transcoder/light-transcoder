@@ -11,12 +11,15 @@ const id = uuid();
 const dir = `./tmp/${id}/`;
 mkdirp(dir)
 
+
 const stream = new StreamingBrain();
 
 stream.setInput('../../test.mkv');
 
 
-exec(ffmpeg.path, stream.getCommand(), dir)
+setTimeout(() => {
+    exec(ffmpeg.path, stream.getCommand(), dir)
+}, 1000)
 
 
 // Init our express app
