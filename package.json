@@ -1,0 +1,21 @@
+{
+  "name": "live-transcoder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "esm": "^3.2.25",
+    "express": "^4.17.1",
+    "ffmpeg-static": "^2.7.0",
+    "ffprobe-static": "^3.0.0",
+    "mkdirp": "^0.5.1",
+    "uuid": "^3.3.3"
+  }
+}
