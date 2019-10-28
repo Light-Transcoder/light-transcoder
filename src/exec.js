@@ -14,8 +14,8 @@ export default (binary, args = [], cwd = './') => (new Promise((resolve) => {
             stderr,
         });
     };
-    exec.stdout.on('data', (data) => { console.log(data.toString()) });
-    exec.stderr.on('data', (data) => { console.log(data.toString()) });
+    exec.stdout.on('data', (data) => { stdout += data; });
+    exec.stderr.on('data', (data) => { stderr += data; });
     exec.on('close', end);
     exec.on('exit', end);
 }));

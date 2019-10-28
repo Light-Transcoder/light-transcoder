@@ -1,7 +1,11 @@
+import uuid from 'uuid/v4';
+
 export default class StreamingBrain {
 
-    constructor() {
-        this._input = '';
+    constructor(input = '', meta = false, profileId = 0) {
+        this._uuid = uuid();
+        this._input = input;
+        this._meta = meta;
         this._inputVideoStream = '0:v:0';
         this._inputAudioStream = '0:a:0';
         this._format = 'HLS';
@@ -12,9 +16,9 @@ export default class StreamingBrain {
         this._outputFPS = 23.975999999999999;
         this._useAdaptativePreset = true;
         this._startAt = parseInt(0, 10); // In seconds
-        this._duration = 3 * 60 + 35;
+        this._duration = (meta && meta.global.duration) ? meta.global.duration : 60 * 60 * 2; // Fallback to 2h if not available
         this._debug = true;
-        this._profile = 16;
+        this._profile = profileId;
     }
 
     setInput(value) {
@@ -223,13 +227,13 @@ export default class StreamingBrain {
             '#EXTM3U',
             '#EXT-X-VERSION:3',
             `#EXT-X-TARGETDURATION:${this._chunkDuration}`,
-            // '#EXT-X-ALLOW-CACHE:YES',
+            '#EXT-X-ALLOW-CACHE:YES',
             '#EXT-X-MEDIA-SEQUENCE:0',
             '#EXT-X-PLAYLIST-TYPE:EVENT',
             ...Array(this.getNbChunks()).fill(true).reduce((acc, _, i) => ([
                 ...acc,
                 `#EXTINF:${this._chunkDuration}.005333,`,
-                `/${i}.ts`
+                `${i}.ts`
             ]), []),
             '#EXT-X-ENDLIST'
         ].join('\n');
@@ -240,11 +244,12 @@ export default class StreamingBrain {
             '#EXTM3U',
             '#EXT-X-VERSION:3',
             '#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=300000',
-            'hls.m3u8'
+            'stream.m3u8'
         ].join('\n');
     }
 
     getProfiles() {
+        // In the future, based on metadata, this function should filter available profiles
         const resolutions = [
             { audioBitrate: 135, videoBitrate: 50, x264subme: 2, x264crf: 22, x264preset: 'slower', height: 160, name: '160p (256k)' },
             { audioBitrate: 123, videoBitrate: 180, x264subme: 2, x264crf: 23, x264preset: 'slower', height: 240, name: '240p (512k)' },
