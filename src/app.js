@@ -72,12 +72,15 @@ app.get('/session/:sessionid/hls/:id.ts', (req, res) => {
     session.routeSendChunk(req.params.id, req, res);
 });
 
+app.use('/public', express.static('public'));
+
 // Bind and start
 const server = app.listen(config.server.port);
 
 // Catch SIGTERM and SIGKILL
 ['SIGTERM', 'SIGKILL'].forEach(signal => {
     process.on(signal, () => {
+        process.exit(0);
         server.close(() => {
             process.exit(0);
         });

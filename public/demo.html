@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- Shaka Player compiled library: -->
+    <script src="https://shaka-player-demo.appspot.com/dist/shaka-player.compiled.js"></script>
+
+  </head>
+  <body>
+    <video id="video"
+           width="640"
+           controls autoplay></video>
+  </body>
+</html>
+
+
+<script>
+	const startAnalyse = (url) => {
+
+		fetch('http://localhost:8585/media/analyze', {
+			method: 'POST',
+			body: JSON.stringify({ "url": "" })
+		}		).then(d => d.json()).then(data => {
+			console.log(data)
+		})
+	}
+
+
+	startAnalyse();
+	
+	
+	var manifestUri =
+    'http://localhost:8585/session/35932ada-94f0-4387-b50b-bab3cf4fece9/hls/master.m3u8';
+
+function initApp() {
+  // Install built-in polyfills to patch browser incompatibilities.
+  shaka.polyfill.installAll();
+
+  // Check to see if the browser supports the basic APIs Shaka needs.
+  if (shaka.Player.isBrowserSupported()) {
+    // Everything looks good!
+    initPlayer();
+  } else {
+    // This browser does not have the minimum set of APIs we need.
+    console.error('Browser not supported!');
+  }
+}
+
+function initPlayer() {
+  // Create a Player instance.
+  var video = document.getElementById('video');
+  var player = new shaka.Player(video);
+
+  // Attach player to the window to make it easy to access in the JS console.
+  window.player = player;
+
+  // Listen for error events.
+  player.addEventListener('error', onErrorEvent);
+
+  // Try to load a manifest.
+  // This is an asynchronous process.
+  player.load(manifestUri).then(function() {
+    // This runs if the asynchronous load is successful.
+    console.log('The video has now been loaded!');
+  }).catch(onError);  // onError is executed if the asynchronous load fails.
+}
+
+function onErrorEvent(event) {
+  // Extract the shaka.util.Error object from the event.
+  onError(event.detail);
+}
+
+function onError(error) {
+  // Log the error.
+  console.error('Error code', error.code, 'object', error);
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
+	
+	
+</script>

@@ -232,7 +232,7 @@ export default class StreamingBrain {
             '#EXT-X-PLAYLIST-TYPE:EVENT',
             ...Array(this.getNbChunks()).fill(true).reduce((acc, _, i) => ([
                 ...acc,
-                `#EXTINF:${this._chunkDuration}.005333,`,
+                `#EXTINF:${this._chunkDuration}.005333,`, // Todo fix float value + last chunk duration
                 `${i}.ts`
             ]), []),
             '#EXT-X-ENDLIST'
@@ -251,26 +251,26 @@ export default class StreamingBrain {
     getProfiles() {
         // In the future, based on metadata, this function should filter available profiles
         const resolutions = [
-            { audioBitrate: 135, videoBitrate: 50, x264subme: 2, x264crf: 22, x264preset: 'slower', height: 160, name: '160p (256k)' },
-            { audioBitrate: 123, videoBitrate: 180, x264subme: 2, x264crf: 23, x264preset: 'slower', height: 240, name: '240p (512k)' },
-            { audioBitrate: 153, videoBitrate: 530, x264subme: 2, x264crf: 21, x264preset: 'slow', height: 328, name: '328p (768k)' },
-            { audioBitrate: 159, videoBitrate: 1260, x264subme: 2, x264crf: 21, x264preset: 'slow', height: 480, name: '480p (1.5M)' }, // Maybe add a 576 profile ?
-            { audioBitrate: 204, videoBitrate: 1544, x264subme: 2, x264crf: 19, x264preset: 'medium', height: 720, name: '720p (2M)' },
-            { audioBitrate: 117, videoBitrate: 2698, x264subme: 0, x264crf: 23, x264preset: 'medium', height: 720, name: '720p (3M)' },
-            { audioBitrate: 148, videoBitrate: 3623, x264subme: 0, x264crf: 21, x264preset: 'fast', height: 720, name: '720p (4M)' },
-            { audioBitrate: 136, videoBitrate: 7396, x264subme: 0, x264crf: 22, x264preset: 'fast', height: 1080, name: '1080p (8M)' },
-            { audioBitrate: 164, videoBitrate: 9261, x264subme: 0, x264crf: 21, x264preset: 'faster', height: 1080, name: '1080p (10M)' },
-            { audioBitrate: 191, videoBitrate: 10947, x264subme: 0, x264crf: 19, x264preset: 'faster', height: 1080, name: '1080p (12M)' },
-            { audioBitrate: 256, videoBitrate: 14256, x264subme: 0, x264crf: 19, x264preset: 'veryfast', height: 1080, name: '1080p (15M)' },
-            { audioBitrate: 512, videoBitrate: 18320, x264subme: 0, x264crf: 18, x264preset: 'veryfast', height: 1080, name: '1080p (20M)' },
-            { audioBitrate: 1024, videoBitrate: 23320, x264subme: 0, x264crf: 17, x264preset: 'superfast', height: 1080, name: '1080p (25M)' },
-            { audioBitrate: 1024, videoBitrate: 23320, x264subme: 0, x264crf: 17, x264preset: 'superfast', height: 1080, name: '1080p (30M)' },
-            { audioBitrate: 2048, videoBitrate: 35320, x264subme: 0, x264crf: 17, x264preset: 'superfast', height: 1080, name: '1080p (40M)' },
-            { audioBitrate: 2048, videoBitrate: 455320, x264subme: 0, x264crf: 16, x264preset: 'superfast', height: 1080, name: '1080p (50M)' },
-            { audioBitrate: 2048, videoBitrate: 455320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', height: 2160, name: '4K (50M)' },
-            { audioBitrate: 2048, videoBitrate: 555320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', height: 2160, name: '4K (60M)' },
-            { audioBitrate: 4096, videoBitrate: 655320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', height: 2160, name: '4K (70M)' },
-            { audioBitrate: 4096, videoBitrate: 1310640, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', height: 4320, name: '8K (140M)' },
+            { audioBitrate: 135, videoBitrate: 50, x264subme: 2, x264crf: 22, x264preset: 'slower', height: 160, width: 285, name: '160p (256k)' },
+            { audioBitrate: 123, videoBitrate: 180, x264subme: 2, x264crf: 23, x264preset: 'slower', height: 240, width: 430, name: '240p (512k)' },
+            { audioBitrate: 153, videoBitrate: 530, x264subme: 2, x264crf: 21, x264preset: 'slow', height: 350, width: 625, name: '350p (768k)' },
+            { audioBitrate: 159, videoBitrate: 1260, x264subme: 2, x264crf: 21, x264preset: 'slow', height: 480, width: 855, name: '480p (1.5M)' }, // Maybe add a 576 profile ?
+            { audioBitrate: 204, videoBitrate: 1544, x264subme: 2, x264crf: 19, x264preset: 'medium', height: 720, width: 1280, name: '720p (2M)' },
+            { audioBitrate: 117, videoBitrate: 2698, x264subme: 0, x264crf: 23, x264preset: 'medium', height: 720, width: 1280, name: '720p (3M)' },
+            { audioBitrate: 148, videoBitrate: 3623, x264subme: 0, x264crf: 21, x264preset: 'fast', height: 720, width: 1280, name: '720p (4M)' },
+            { audioBitrate: 136, videoBitrate: 7396, x264subme: 0, x264crf: 22, x264preset: 'fast', height: 1080, width: 1920, name: '1080p (8M)' },
+            { audioBitrate: 164, videoBitrate: 9261, x264subme: 0, x264crf: 21, x264preset: 'faster', height: 1080, width: 1920, name: '1080p (10M)' },
+            { audioBitrate: 191, videoBitrate: 10947, x264subme: 0, x264crf: 19, x264preset: 'faster', height: 1080, width: 1920, name: '1080p (12M)' },
+            { audioBitrate: 256, videoBitrate: 14256, x264subme: 0, x264crf: 19, x264preset: 'veryfast', height: 1080, width: 1920, name: '1080p (15M)' },
+            { audioBitrate: 512, videoBitrate: 18320, x264subme: 0, x264crf: 18, x264preset: 'veryfast', height: 1080, width: 1920, name: '1080p (20M)' },
+            { audioBitrate: 1024, videoBitrate: 23320, x264subme: 0, x264crf: 17, x264preset: 'superfast', height: 1080, width: 1920, name: '1080p (25M)' },
+            { audioBitrate: 1024, videoBitrate: 23320, x264subme: 0, x264crf: 17, x264preset: 'superfast', height: 1080, width: 1920, name: '1080p (30M)' },
+            { audioBitrate: 2048, videoBitrate: 35320, x264subme: 0, x264crf: 17, x264preset: 'superfast', height: 1080, width: 1920, name: '1080p (40M)' },
+            { audioBitrate: 2048, videoBitrate: 455320, x264subme: 0, x264crf: 16, x264preset: 'superfast', height: 1080, width: 1920, name: '1080p (50M)' }, // Add a 2K profile
+            { audioBitrate: 2048, videoBitrate: 455320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', height: 2160, width: 3840, name: '4K (50M)' },
+            { audioBitrate: 2048, videoBitrate: 555320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', height: 2160, width: 3840, name: '4K (60M)' },
+            { audioBitrate: 4096, videoBitrate: 655320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', height: 2160, width: 3840, name: '4K (70M)' },
+            { audioBitrate: 4096, videoBitrate: 1310640, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', height: 4320, width: 7680, name: '8K (140M)' }, // Add original Direct Stream profile
         ]
         return resolutions;
     }
