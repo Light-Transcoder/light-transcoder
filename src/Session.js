@@ -1,7 +1,7 @@
 import uuid from 'uuid/v4';
 import mkdirp from 'mkdirp';
 import ffmpeg from 'ffmpeg-static';
-import { createReadStream } from 'fs';
+import { createReadStream, stat } from 'fs';
 
 import exec from './exec';
 
@@ -30,8 +30,17 @@ export default class Session {
     routeSendChunk(chunkId, req, res) {
         try {
             const path = `${this._dir}hls${chunkId}.ts`;
-            const stream = createReadStream(path);
-            stream.pipe(res);
+            stat(path, (err, stats) => {
+                if (!err) {
+                    const stream = createReadStream(path);
+                    stream.pipe(res);
+                }
+                else {
+                    console.error(err);
+                    res.status(404).send('404')
+                }
+            })
+
         } catch (e) {
             console.error(e);
             res.status(404).send('404')
