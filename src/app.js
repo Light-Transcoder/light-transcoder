@@ -2,7 +2,8 @@ import express from 'express';
 import bodyParser from 'body-parser';
 
 import cors from 'cors';
-import StreamingBrain from './streamingBrain';
+import StreamingBrain from './StreamingBrain';
+import FFmpeg from './FFmpeg';
 import Session from './Session';
 import MediaAnalyzer from './mediaAnalyzer';
 import config from './config';
@@ -31,24 +32,41 @@ app.post('/media/analyze', async (req, res) => {
     const analyzer = new MediaAnalyzer(input);
     const meta = await analyzer.analyze();
     const sb = new StreamingBrain(input, meta);
+    const tracks = sb.getTracks();
     const profiles = sb.getProfiles();
-    res.send({ meta, profiles });
+    res.send({ meta, profiles, tracks });
 })
 
 app.post('/session', async (req, res) => {
+
+    // Todo verify value and check profile / video/audio/protocol
+
     if (!req.body.url)
         return res.status(404).send('url not found in body');
     if (!req.body.profile)
         return res.status(404).send('profile not found in body');
+    if (!req.body.protocol)
+        return res.status(404).send('protocol not found in body');
+    if (!req.body.video)
+        return res.status(404).send('video not found in body');
+    if (!req.body.audio)
+        return res.status(404).send('audio not found in body');
     const profileId = req.body.profile;
     const input = req.body.url;
     const analyzer = new MediaAnalyzer(input);
     const meta = await analyzer.analyze();
-    const sb = new StreamingBrain(input, meta, profileId);
-    const session = new Session(analyzer, sb);
+    const sb = new StreamingBrain(input, meta);
+    const ffmpeg = new FFmpeg({
+        input, meta,
+        profile: sb.getQualities()[profileId],
+        videoStream: req.body.video,
+        audioStream: req.body.audio,
+        protocol: req.body.protocol,
+    });
+    const session = new Session(analyzer, ffmpeg);
     session.start();
     SessionsArray[session.getUuid()] = session;
-    res.send({ session: { uuid: session.getUuid(), stream:{type:'HLS', url: `${config.server.public}session/${session.getUuid()}/hls/master.m3u8`} } });
+    res.send({ session: { uuid: session.getUuid(), stream: { type: 'HLS', url: `${config.server.public}session/${session.getUuid()}/hls/master.m3u8` } } });
 });
 
 app.get('/session/:sessionid/hls/master.m3u8', (req, res) => {

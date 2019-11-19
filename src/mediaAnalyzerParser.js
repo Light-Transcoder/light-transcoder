@@ -95,6 +95,7 @@ export const parseMeta = (meta) => {
             duration: ((meta.format && typeof (meta.format.duration) !== 'undefined') ? parseFloat(meta.format.duration) : 0),
             size: ((meta.format && typeof (meta.format.size) !== 'undefined') ? parseInt(meta.format.size, 10) : 0),
             resolution,
+            bitrate: ((meta.format && typeof (meta.format.bit_rate) !== 'undefined') ? parseInt(meta.format.bit_rate, 10) : 0),
             rotate: getRotateValue(meta),
             ratio: (resolution) ? calcRatio(`${resolution.width}:${resolution.height}`) : false,
             isHDR: detectHDR(meta),

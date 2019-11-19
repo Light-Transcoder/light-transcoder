@@ -30,19 +30,26 @@ export default class Session {
     routeSendChunk(chunkId, req, res) {
         try {
             const path = `${this._dir}hls${chunkId}.ts`;
-            stat(path, (err, stats) => {
-                if (!err) {
-                    const stream = createReadStream(path);
-                    stream.pipe(res);
-                }
-                else {
-                    console.error(err);
-                    res.status(404).send('404')
-                }
-            })
+            console.log(path)
+            //stat(path, (err, stats) => {
+                //if (!err) {
+                    //const stream = createReadStream(path);
+                    //stream.pipe(res);
+                    return setTimeout(() => {
+                       // res.sendFile(path); 
+                       console.log('serve')
+                        const stream = createReadStream(path);
+                        stream.pipe(res);
+                    }, 2500) // TODO rework
+               // }
+                //else {
+                   // console.error('skip');
+                  //  res.status(404).send('404')
+               // }
+            //})
 
         } catch (e) {
-            console.error(e);
+            //console.error('skip');
             res.status(404).send('404')
         }
     }
