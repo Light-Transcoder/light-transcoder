@@ -1,12 +1,15 @@
 import uuid from 'uuid/v4';
+import MediaAnalyzer from './mediaAnalyzer';
 
 
 export default class StreamingBrain {
 
-    constructor(input = '', meta = false) {
+    constructor(input = '') {
         this._uuid = uuid();
         this._input = input;
-        this._meta = meta;
+        this._meta = false;
+        this._analyzer = new MediaAnalyzer(input);
+
         /*
         this._inputVideoStream = '0:v:0';
         this._inputAudioStream = '0:a:0';
@@ -28,7 +31,21 @@ export default class StreamingBrain {
         this.allowedStreamModes = ['HLS', 'DASH', 'LP', 'DOWNLOAD'];
     }
 
-    getTracks() {
+    async getMeta() {
+        if (!this._meta)
+            this._meta = await this._analyzer.analyze();
+        return this._meta;
+    }
+
+    async analyse() {
+        if (!this._meta)
+            this._meta = await this._analyzer.analyze();
+        return true;
+    }
+
+    async getTracks() {
+        await this.analyse();
+
         if (!this._meta)
             return {};
 
@@ -126,7 +143,8 @@ export default class StreamingBrain {
     }
 
 
-    getProfiles() {
+    async getProfiles() {
+        await this.analyse();
 
         const resolution = this._meta.global.resolution;
         const qualities = this.getQualities().filter((e) => (e.width <= resolution.width && e.height <= resolution.height && e.videoBitrate + e.audioBitrate <= this._meta.global.bitrate / 1024));

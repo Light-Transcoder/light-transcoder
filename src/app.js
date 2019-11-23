@@ -3,9 +3,7 @@ import bodyParser from 'body-parser';
 
 import cors from 'cors';
 import StreamingBrain from './StreamingBrain';
-import FFmpeg from './FFmpeg';
 import Session from './Session';
-import MediaAnalyzer from './mediaAnalyzer';
 import config from './config';
 
 // Init our express app
@@ -29,12 +27,13 @@ let SessionsArray = {}
 
 app.post('/media/analyze', async (req, res) => {
     const input = req.body.url;
-    const analyzer = new MediaAnalyzer(input);
-    const meta = await analyzer.analyze();
-    const sb = new StreamingBrain(input, meta);
-    const tracks = sb.getTracks();
-    const profiles = sb.getProfiles();
-    res.send({ meta, profiles, tracks });
+    if (!req.body.url)
+        return res.status(404).send('url not found in body');
+    const sb = new StreamingBrain(input);
+    res.send({
+        profiles: await sb.getProfiles(),
+        tracks: await sb.getTracks()
+    });
 })
 
 app.post('/session', async (req, res) => {
@@ -51,19 +50,10 @@ app.post('/session', async (req, res) => {
         return res.status(404).send('video not found in body');
     if (!req.body.audio)
         return res.status(404).send('audio not found in body');
-    const profileId = req.body.profile;
+    const profileId = parseInt(req.body.profile, 10);
     const input = req.body.url;
-    const analyzer = new MediaAnalyzer(input);
-    const meta = await analyzer.analyze();
-    const sb = new StreamingBrain(input, meta);
-    const ffmpeg = new FFmpeg({
-        input, meta,
-        profile: sb.getQualities()[profileId],
-        videoStream: req.body.video,
-        audioStream: req.body.audio,
-        protocol: req.body.protocol,
-    });
-    const session = new Session(analyzer, ffmpeg);
+    const sb = new StreamingBrain(input);
+    const session = new Session(req.body.protocol, input, req.body.video, req.body.audio, sb, profileId);
     session.start();
     SessionsArray[session.getUuid()] = session;
     res.send({ session: { uuid: session.getUuid(), stream: { type: 'HLS', url: `${config.server.public}session/${session.getUuid()}/hls/master.m3u8` } } });
@@ -90,7 +80,7 @@ app.get('/session/:sessionid/hls/:id.ts', (req, res) => {
     session.routeSendChunk(req.params.id, req, res);
 });
 
-app.use('/public', express.static('public'));
+app.use('/demo', express.static('public'));
 
 // Bind and start
 const server = app.listen(config.server.port);

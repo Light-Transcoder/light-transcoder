@@ -1,20 +1,27 @@
 import uuid from 'uuid/v4';
+import mkdirp from 'mkdirp'
+import ffmpeg from 'ffmpeg-static';
+import { createReadStream, stat } from 'fs';
+import { execFile } from 'child_process';
 
-export default class StreamingBrain {
+export default class FFmpeg {
 
     constructor({
-        input = '', 
-        meta = false, 
+        input = '',
+        meta = false,
         profile = false,
-        videoStream= '0:v:0',
-        audioStream= '0:a:0',
-        protocol= 'HLS',
+        videoStream = '0:v:0',
+        audioStream = '0:a:0',
+        protocol = 'HLS',
+        dir = './',
     }) {
         this._uuid = uuid();
         this._input = input;
         this._meta = meta;
         this._inputVideoStream = videoStream;
         this._inputAudioStream = audioStream;
+
+        console.log( this._inputVideoStream,  this._inputAudioStream)
         this._protocol = protocol;
         this._chunkDuration = 5;
         this._videoDirectStream = false // If true we use "copy"
@@ -26,6 +33,9 @@ export default class StreamingBrain {
         this._duration = (meta && meta.global.duration) ? meta.global.duration : 60 * 60 * 2; // Fallback to 2h if not available
         this._debug = true;
         this._profile = profile;
+        this._dir = `${dir}transcoder-${this._uuid}/`;
+        this._currentProcessingChunk = false;
+        this._availableChunks = []
     }
 
     setInput(value) {
@@ -229,9 +239,34 @@ export default class StreamingBrain {
         return Math.ceil(this._duration / this._chunkDuration);
     }
 
+    sendChunkStream(id, res) {
+        return new Promise((resolve, reject) => {
+            const path = `${this._dir}hls${id}.ts`;
+            console.log('Asking chunk', id, path);
+            stat(path, (err) => {
+                if (err)
+                    return reject(err);
+                const stream = createReadStream(path);
+                stream.pipe(res);
+                stream.on('finish', () => { return resolve(id) });
+                stream.on('error', (err) => { return reject(id, err) });
+            });
+        });
+    }
+
+    getChunkStatus(id) {
+        return (this._availableChunks.indexOf(parseInt(id, 10)) !== -1);
+    }
+
+    getCurrentChunkId() {
+        return (this._currentProcessingChunk);
+    }
+
     getHLSStream() {
+        const lastDuration = this._duration - ((this.getNbChunks() - 1) * this._chunkDuration);
         return [
             '#EXTM3U',
+            '#EXT-X-PLAYLIST-TYPE:VOD',
             '#EXT-X-VERSION:3',
             `#EXT-X-TARGETDURATION:${this._chunkDuration}`,
             '#EXT-X-ALLOW-CACHE:YES',
@@ -239,7 +274,7 @@ export default class StreamingBrain {
             '#EXT-X-PLAYLIST-TYPE:EVENT',
             ...Array(this.getNbChunks()).fill(true).reduce((acc, _, i) => ([
                 ...acc,
-                `#EXTINF:${this._chunkDuration}.005333,`, // Todo fix float value + last chunk duration
+                `#EXTINF:${(i === this.getNbChunks() - 1) ? lastDuration : this._chunkDuration}, nodesc`,
                 `${i}.ts`
             ]), []),
             '#EXT-X-ENDLIST'
@@ -250,8 +285,54 @@ export default class StreamingBrain {
         return [
             '#EXTM3U',
             '#EXT-X-VERSION:3',
-            '#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=300000',
+            '#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=300000', // TODO BIND BANDWIDTH
             'stream.m3u8'
         ].join('\n');
+    }
+
+    start() {
+
+        mkdirp(this._dir, (err) => {
+            if (err)
+                return;
+            const binary = ffmpeg.path;
+            const args = this.getCommand();
+            const exec = execFile(binary, [...args], { cwd: this._dir });
+            let stdout = '';
+            let stderr = '';
+            const end = () => {
+                /* resolve({
+                     binary,
+                     args,
+                     cwd,
+                     stdout,
+                     stderr,
+                 });*/
+            };
+            exec.stdout.on('data', (data) => { stdout += data; });
+            exec.stderr.on('data', (data) => {
+                if (data.includes('Opening') && data.includes('.m3u8')) { // Manifest update (Previous chunk is ready)
+                    if (this._currentProcessingChunk !== false) {
+                        console.log(`Chunk ${this._currentProcessingChunk} is ready!`);
+                        this._availableChunks.push(this._currentProcessingChunk)
+                        this._currentProcessingChunk = false;
+                    }
+                }
+                else if (data.includes('Opening') && data.includes('.ts')) { // Writing chunk
+                    const parsed = (/(.*)hls([0-9]+).ts(.*)/gm).exec(data);
+                    if (parsed.length === 4) {
+                        this._currentProcessingChunk = parseInt(parsed[2], 10);
+                    }
+                }
+                else if (data.includes('frame=')) { // Stats event
+                    // console.log('STATS', data);
+                }
+
+                stderr += data;
+
+            });
+            exec.on('close', end);
+            exec.on('exit', end);
+        })
     }
 }
