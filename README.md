@@ -12,6 +12,8 @@ To test it:
 - Choose quality and tracks.
 - Clic on `Play!`.
 
+Note: The direct stream can failed if the original codec is not supported by your browser
+
 
 ## API Draft (NEED TO BE UPDATED)
 
@@ -40,4 +42,20 @@ To test it:
         }
     }
 }
+```
+
+## DRAFT supported codec map
+
+```
+[{
+    "type": "HLS",
+    "video" : [
+        {"codec": "h264"},
+        {"codec": "webm"},
+    ],
+    "audio" : [
+        {"codec": "aac"},
+        {"codec": "ogg"},
+    ]
+}]
 ```
