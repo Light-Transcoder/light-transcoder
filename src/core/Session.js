@@ -18,12 +18,16 @@ export default class Session {
 
     async initFFmpeg() {
         const meta = await this._streamingBrain.getMeta();
+        const profile = (await this._streamingBrain.getProfiles())[this._profileId];
+        console.log(profile);
         this._ffmpeg = new FFmpeg({
             input: this._input,
             meta,
-            profile: this._streamingBrain.getQualities()[this._profileId],
+            profile,
             videoStream: this._videoStream,
+            videoStreamCopy: profile.directStreamVideo,
             audioStream: this._audioStream,
+            audioStreamCopy: profile.directStreamAudio,
             protocol: this._protocol,
             dir: this._dir,
         });
@@ -34,18 +38,17 @@ export default class Session {
     }
 
     routeSendChunk(id, req, res) {
-        let nb = 1;
-        const interval = setInterval(() => {
-            if (this._ffmpeg.getChunkStatus(id)) {
-                this._ffmpeg.sendChunkStream(id, res);
-                clearInterval(interval);
-            }
-            if (nb === 20) {
-                clearInterval(interval);
-                res.status(404).send('404')
-            }
-            nb++;
-        }, 500);
+        const chunkStore = this._ffmpeg.getChunkStore();
+        const cancel = setTimeout(() => {
+            chunkStore.waitChunkCancel(id, callback);
+            //res.status(404).send('404')
+        }, 10000);
+        const callback = (x) => {
+            clearTimeout(cancel);
+            console.log('callback', x)
+            this._ffmpeg.sendChunkStream(id, res);
+        }
+        chunkStore.waitChunk(id, callback);
     }
 
     async routeSendHLSMaster(req, res) {

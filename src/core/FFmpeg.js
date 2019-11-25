@@ -3,6 +3,7 @@ import mkdirp from 'mkdirp'
 import ffmpeg from 'ffmpeg-static';
 import { createReadStream, stat } from 'fs';
 import { execFile } from 'child_process';
+import ChunkStore from './ChunkStore';
 
 export default class FFmpeg {
 
@@ -11,7 +12,9 @@ export default class FFmpeg {
         meta = false,
         profile = false,
         videoStream = '0:v:0',
+        videoStreamCopy = false,
         audioStream = '0:a:0',
+        audioStreamCopy = false,
         protocol = 'HLS',
         dir = './',
     }) {
@@ -21,11 +24,11 @@ export default class FFmpeg {
         this._inputVideoStream = videoStream;
         this._inputAudioStream = audioStream;
 
-        console.log( this._inputVideoStream,  this._inputAudioStream)
+        console.log(this._inputVideoStream, this._inputAudioStream)
         this._protocol = protocol;
         this._chunkDuration = 5;
-        this._videoDirectStream = false // If true we use "copy"
-        this._audioDirectStream = false // If true we use "copy"
+        this._videoDirectStream = videoStreamCopy;
+        this._audioDirectStream = audioStreamCopy;
         this._analyseDuration = 20000000;
         this._outputFPS = 23.975999999999999;
         this._useAdaptativePreset = true;
@@ -34,8 +37,12 @@ export default class FFmpeg {
         this._debug = true;
         this._profile = profile;
         this._dir = `${dir}transcoder-${this._uuid}/`;
-        this._currentProcessingChunk = false;
-        this._availableChunks = []
+
+        this._chunkStore = new ChunkStore();
+    }
+
+    getChunkStore() {
+        return this._chunkStore;
     }
 
     setInput(value) {
@@ -242,7 +249,7 @@ export default class FFmpeg {
     sendChunkStream(id, res) {
         return new Promise((resolve, reject) => {
             const path = `${this._dir}hls${id}.ts`;
-            console.log('Asking chunk', id, path);
+            console.log('Sending chunk', id, path);
             stat(path, (err) => {
                 if (err)
                     return reject(err);
@@ -252,14 +259,6 @@ export default class FFmpeg {
                 stream.on('error', (err) => { return reject(id, err) });
             });
         });
-    }
-
-    getChunkStatus(id) {
-        return (this._availableChunks.indexOf(parseInt(id, 10)) !== -1);
-    }
-
-    getCurrentChunkId() {
-        return (this._currentProcessingChunk);
     }
 
     getHLSStream() {
@@ -290,13 +289,28 @@ export default class FFmpeg {
         ].join('\n');
     }
 
-    start() {
+    _logParser(data) {
+        if (data.includes('Opening') && data.includes('.m3u8')) { // Manifest update (Previous chunk is ready)
+            this._chunkStore.setCurrentChunkReady();
+        }
+        else if (data.includes('Opening') && data.includes('.ts')) { // Writing chunk started
+            const parsed = (/(.*)hls([0-9]+).ts(.*)/gm).exec(data);
+            if (parsed.length === 4) {
+                this._chunkStore.setCurrentChunk(parsed[2]);
+            }
+        }
+        else if (data.includes('frame=')) { // Stats event
+            // console.log('STATS', data);
+        }
+    }
 
+    start() {
         mkdirp(this._dir, (err) => {
             if (err)
                 return;
             const binary = ffmpeg.path;
             const args = this.getCommand();
+            console.log(`${binary} ${args.map((a) => (`"${a}"`)).join(' ')}`);
             const exec = execFile(binary, [...args], { cwd: this._dir });
             let stdout = '';
             let stderr = '';
@@ -309,27 +323,12 @@ export default class FFmpeg {
                      stderr,
                  });*/
             };
-            exec.stdout.on('data', (data) => { stdout += data; });
+            exec.stdout.on('data', (data) => {
+                stdout += data;
+            });
             exec.stderr.on('data', (data) => {
-                if (data.includes('Opening') && data.includes('.m3u8')) { // Manifest update (Previous chunk is ready)
-                    if (this._currentProcessingChunk !== false) {
-                        console.log(`Chunk ${this._currentProcessingChunk} is ready!`);
-                        this._availableChunks.push(this._currentProcessingChunk)
-                        this._currentProcessingChunk = false;
-                    }
-                }
-                else if (data.includes('Opening') && data.includes('.ts')) { // Writing chunk
-                    const parsed = (/(.*)hls([0-9]+).ts(.*)/gm).exec(data);
-                    if (parsed.length === 4) {
-                        this._currentProcessingChunk = parseInt(parsed[2], 10);
-                    }
-                }
-                else if (data.includes('frame=')) { // Stats event
-                    // console.log('STATS', data);
-                }
-
+                this._logParser(data);
                 stderr += data;
-
             });
             exec.on('close', end);
             exec.on('exit', end);

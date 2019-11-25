@@ -1,6 +1,6 @@
 import ffprobe from 'ffprobe-static';
-import exec from './exec';
-import { parseMeta } from './mediaAnalyzerParser';
+import exec from './Exec';
+import { parseMeta } from './MediaAnalyzerParser';
 
 let _CACHE = {};
 

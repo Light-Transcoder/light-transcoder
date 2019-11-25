@@ -2,8 +2,8 @@ import express from 'express';
 import bodyParser from 'body-parser';
 
 import cors from 'cors';
-import StreamingBrain from './StreamingBrain';
-import Session from './Session';
+import StreamingBrain from './core/StreamingBrain';
+import Session from './core/Session';
 import config from './config';
 
 // Init our express app
