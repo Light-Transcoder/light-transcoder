@@ -289,6 +289,36 @@ export default class FFmpeg {
         ].join('\n');
     }
 
+    getDashManifest() {
+        return [
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<MPD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
+            '    xmlns="urn:mpeg:dash:schema:mpd:2011"',
+            '    xmlns:xlink="http://www.w3.org/1999/xlink"',
+            '    xsi:schemaLocation="urn:mpeg:dash:schema:mpd:2011 http://standards.iso.org/ittf/PubliclyAvailableStandards/MPEG-DASH_schema_files/DASH-MPD.xsd"',
+            '    profiles="urn:mpeg:dash:profile:isoff-live:2011"',
+            '    type="static"',
+            '    mediaPresentationDuration="PT0H24M0.23999S"',
+            '    maxSegmentDuration="PT16S"',
+            '    minBufferTime="PT10S">',
+            '    <Period start="PT0S" id="0" duration="PT0H24M0.23999S">',
+            '        <AdaptationSet segmentAlignment="true">',
+            `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="dash/tbtv27uc2smkxv6y5k8xpi9u/$RepresentationID$/initial.mp4" media="dash/tbtv27uc2smkxv6y5k8xpi9u/$RepresentationID$/$Number$.m4s" startNumber="0">`,
+            '            </SegmentTemplate>',
+            '            <Representation id="0" mimeType="video/mp4" codecs="avc1.42c00d" bandwidth="50000" width="160" height="90">',
+            '            </Representation>',
+            '        </AdaptationSet>',
+            '        <AdaptationSet segmentAlignment="true">',
+            `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="dash/tbtv27uc2smkxv6y5k8xpi9u/$RepresentationID$/initial.mp4" media="dash/tbtv27uc2smkxv6y5k8xpi9u/$RepresentationID$/$Number$.m4s" startNumber="0">`,            '            </SegmentTemplate>',
+            '            <Representation id="1" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="95000" audioSamplingRate="44100">',
+            '                <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1"/>',
+            '            </Representation>',
+            '        </AdaptationSet>',
+            '    </Period>',
+            '</MPD>',
+        ].join('\n');
+    }
+
     _logParser(data) {
         if (data.includes('Opening') && data.includes('.m3u8')) { // Manifest update (Previous chunk is ready)
             this._chunkStore.setCurrentChunkReady();
