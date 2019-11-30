@@ -50,14 +50,14 @@ export default class StreamingBrain {
 
         const videoStreams = this._meta.meta.streams.filter(e => (e.codec_type === 'video')).map((e, i) => ({
             id: `0:v:${i}`,
-            language: e.tags.LANGUAGE || 'und',
+            language: e.tags && e.tags.LANGUAGE || 'und',
             codec: e.codec_name || 'unknown',
             codec_name: e.codec_long_name || 'Unknown',
         }));
 
         const audioStreams = this._meta.meta.streams.filter(e => (e.codec_type === 'audio')).map((e, i) => ({
             id: `0:a:${i}`,
-            language: e.tags.LANGUAGE || 'und',
+            language: e.tags && e.tags.LANGUAGE || 'und',
             codec: e.codec_name || 'unknown',
             codec_name: e.codec_long_name || 'Unknown',
         }));
