@@ -37,18 +37,29 @@ export default class Session {
         return this._uuid;
     }
 
-    routeSendChunk(id, req, res) {
-        const chunkStore = this._ffmpeg.getChunkStore();
+    routeSendChunk(track, id, req, res) {
+        const chunkStores = this._ffmpeg.getChunkStores();
+        if (!chunkStores[track]) {
+            return res.status(404).send('404');
+        }
+        const chunkStore = chunkStores[track];
         const cancel = setTimeout(() => {
             chunkStore.waitChunkCancel(id, callback);
-            //res.status(404).send('404')
+            res.status(404).send('404')
         }, 10000);
         const callback = (x) => {
             clearTimeout(cancel);
             console.log('callback', x)
-            this._ffmpeg.sendChunkStream(id, res);
+            this._ffmpeg.sendChunkStream(track, id, res);
         }
         chunkStore.waitChunk(id, callback);
+    }
+
+    async routeSendDashManifest(req, res) {
+        if (!this._ffmpeg)
+            await this.initFFmpeg();
+        res.set('content-type', 'text/html; charset=utf-8');
+        res.send(this._ffmpeg.getDashManifest());
     }
 
     async routeSendHLSMaster(req, res) {

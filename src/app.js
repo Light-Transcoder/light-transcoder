@@ -56,7 +56,34 @@ app.post('/session', async (req, res) => {
     const session = new Session(req.body.protocol, input, req.body.video, req.body.audio, sb, profileId);
     session.start();
     SessionsArray[session.getUuid()] = session;
-    res.send({ session: { uuid: session.getUuid(), stream: { type: 'HLS', url: `${config.server.public}session/${session.getUuid()}/hls/master.m3u8` } } });
+    if (req.body.protocol === 'HLS') {
+        res.send({ session: { uuid: session.getUuid(), stream: { type: 'HLS', url: `${config.server.public}session/${session.getUuid()}/hls/master.m3u8` } } });
+    } else if (req.body.protocol === 'DASH') {
+        res.send({ session: { uuid: session.getUuid(), stream: { type: 'DASH', url: `${config.server.public}session/${session.getUuid()}/dash/manifest.mpd` } } });
+    } else {
+        res.send('ERROR')
+    }
+});
+
+app.get('/session/:sessionid/dash/manifest.mpd', (req, res) => {
+    const session = SessionsArray[req.params.sessionid];
+    if (!session)
+        return res.status(404).send('404');
+    session.routeSendDashManifest(req, res);
+})
+
+app.get('/session/:sessionid/dash/:track/:id.m4s', (req, res) => {
+    const session = SessionsArray[req.params.sessionid];
+    if (!session)
+        return res.status(404).send('404');
+    session.routeSendChunk(req.params.track, parseInt(req.params.id, 10) + 1 , req, res);
+});
+
+app.get('/session/:sessionid/dash/:track/initial.mp4', (req, res) => {
+    const session = SessionsArray[req.params.sessionid];
+    if (!session)
+        return res.status(404).send('404');
+    session.routeSendChunk(req.params.track, 'initial', req, res);
 });
 
 app.get('/session/:sessionid/hls/master.m3u8', (req, res) => {
@@ -73,11 +100,11 @@ app.get('/session/:sessionid/hls/stream.m3u8', (req, res) => {
     session.routeSendHLSStream(req, res);
 });
 
-app.get('/session/:sessionid/hls/:id.ts', (req, res) => {
+app.get('/session/:sessionid/hls/:track/:id.ts', (req, res) => {
     const session = SessionsArray[req.params.sessionid];
     if (!session)
         return res.status(404).send('404');
-    session.routeSendChunk(req.params.id, req, res);
+    session.routeSendChunk(req.params.track, req.params.id, req, res);
 });
 
 app.use('/demo', express.static('public'));

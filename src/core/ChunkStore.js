@@ -6,26 +6,30 @@ export default class ChunkStore {
         this._callbackChunks = [];
     }
 
+    _parseChunkId(id) {
+        return (id === 'initial' ? 'initial' : parseInt(id, 10));
+    }
+
     waitChunk(id, callback) {
         if (this.getChunkStatus(id)) {
             return callback(id);
         }
-        this._callbackChunks.push({ id: parseInt(id, 10), callback });
+        this._callbackChunks.push({ id: this._parseChunkId(id), callback });
     }
 
     waitChunkCancel(id, callback) {
-        this._callbackChunks = this._callbackChunks.filter(e => (!(e.id === parseInt(id, 10) && e.callback === callback)));
+        this._callbackChunks = this._callbackChunks.filter(e => (!(e.id === this._parseChunkId(id) && e.callback === callback)));
     }
 
     execChunkCallback(id) {
-        this._callbackChunks.filter(e => (e.id === parseInt(id, 10))).forEach((e) => {
-            e.callback(parseInt(id, 10));
+        this._callbackChunks.filter(e => (e.id === this._parseChunkId(id))).forEach((e) => {
+            e.callback(this._parseChunkId(id));
         })
-        this._callbackChunks = this._callbackChunks.filter(e => (e.id !== parseInt(id, 10)));
+        this._callbackChunks = this._callbackChunks.filter(e => (e.id !== this._parseChunkId(id)));
     }
 
     getChunkStatus(id) {
-        return (this._availableChunks.indexOf(parseInt(id, 10)) !== -1);
+        return (this._availableChunks.indexOf(this._parseChunkId(id)) !== -1);
     }
 
     getCurrentChunkId() {
@@ -33,7 +37,7 @@ export default class ChunkStore {
     }
 
     setCurrentChunk(id) {
-        this._currentProcessingChunk = parseInt(id, 10);
+        this._currentProcessingChunk = this._parseChunkId(id);
     }
 
     setCurrentChunkReady() {

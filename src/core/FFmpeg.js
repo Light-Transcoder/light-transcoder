@@ -4,6 +4,7 @@ import ffmpeg from 'ffmpeg-static';
 import { createReadStream, stat } from 'fs';
 import { execFile } from 'child_process';
 import ChunkStore from './ChunkStore';
+import { getTimeString } from '../utils';
 
 export default class FFmpeg {
 
@@ -38,11 +39,11 @@ export default class FFmpeg {
         this._profile = profile;
         this._dir = `${dir}transcoder-${this._uuid}/`;
 
-        this._chunkStore = new ChunkStore();
+        this._chunkStores = [];
     }
 
-    getChunkStore() {
-        return this._chunkStore;
+    getChunkStores() {
+        return this._chunkStores;
     }
 
     setInput(value) {
@@ -176,24 +177,24 @@ export default class FFmpeg {
                 "-f",
                 "dash",
                 "-seg_duration",
-                "8",
+                this._chunkDuration,
                 /*"-init_seg_name",
                 "init-stream$RepresentationID$.m4s",
                 "-media_seg_name",
                 "chunk-stream$RepresentationID$-$Number%05d$.m4s",*/
-                "-skip_to_segment",
-                "1",
-                "-time_delta",
-                "0.0625",
-                "-manifest_name",
+                // "-skip_to_segment",
+                //  "1",
+                // "-time_delta",
+                // "0.0625",
+                //  "-manifest_name",
                 "manifest.mpd",
-                "-avoid_negative_ts",
-                "disabled",
-                "-map_metadata",
-                "-1",
-                "-map_chapters",
-                "-1",
-                "dash",
+                // "-avoid_negative_ts",
+                // "disabled",
+                // "-map_metadata",
+                // "-1",
+                // "-map_chapters",
+                // "-1",
+                // "dash",
             ); // Dash
         }
         else if (this._protocol === 'LP') {
@@ -246,9 +247,16 @@ export default class FFmpeg {
         return Math.ceil(this._duration / this._chunkDuration);
     }
 
-    sendChunkStream(id, res) {
+    sendChunkStream(track, id, res) {
         return new Promise((resolve, reject) => {
-            const path = `${this._dir}hls${id}.ts`;
+            let path = false;
+            if (this._protocol === 'HLS') {
+                path = `${this._dir}hls${id}.ts`; // Basic HLS chunk
+            } else if (this._protocol === 'DASH' && id !== 'initial') {
+                path = `${this._dir}chunk-stream${track}-${(id).toString().padStart(5, '0')}.m4s`; // Basic DASH chunk
+            } else if (this._protocol === 'DASH' && id === 'initial') {
+                path = `${this._dir}init-stream${track}.m4s`; // Initial DASH chunk
+            }
             console.log('Sending chunk', id, path);
             stat(path, (err) => {
                 if (err)
@@ -274,7 +282,7 @@ export default class FFmpeg {
             ...Array(this.getNbChunks()).fill(true).reduce((acc, _, i) => ([
                 ...acc,
                 `#EXTINF:${(i === this.getNbChunks() - 1) ? lastDuration : this._chunkDuration}, nodesc`,
-                `${i}.ts`
+                `0/${i}.ts`
             ]), []),
             '#EXT-X-ENDLIST'
         ].join('\n');
@@ -298,18 +306,18 @@ export default class FFmpeg {
             '    xsi:schemaLocation="urn:mpeg:dash:schema:mpd:2011 http://standards.iso.org/ittf/PubliclyAvailableStandards/MPEG-DASH_schema_files/DASH-MPD.xsd"',
             '    profiles="urn:mpeg:dash:profile:isoff-live:2011"',
             '    type="static"',
-            '    mediaPresentationDuration="PT0H24M0.23999S"',
-            '    maxSegmentDuration="PT16S"',
-            '    minBufferTime="PT10S">',
-            '    <Period start="PT0S" id="0" duration="PT0H24M0.23999S">',
+            `    mediaPresentationDuration="${getTimeString(this._duration)}"`,
+            `    maxSegmentDuration="${getTimeString(16)}"`,
+            `    minBufferTime="${getTimeString(10)}">`,
+            `    <Period start="PT0S" id="0" duration="${getTimeString(this._duration)}">`,
             '        <AdaptationSet segmentAlignment="true">',
-            `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="dash/tbtv27uc2smkxv6y5k8xpi9u/$RepresentationID$/initial.mp4" media="dash/tbtv27uc2smkxv6y5k8xpi9u/$RepresentationID$/$Number$.m4s" startNumber="0">`,
+            `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="$RepresentationID$/initial.mp4" media="$RepresentationID$/$Number$.m4s" startNumber="0">`,
             '            </SegmentTemplate>',
             '            <Representation id="0" mimeType="video/mp4" codecs="avc1.42c00d" bandwidth="50000" width="160" height="90">',
             '            </Representation>',
             '        </AdaptationSet>',
             '        <AdaptationSet segmentAlignment="true">',
-            `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="dash/tbtv27uc2smkxv6y5k8xpi9u/$RepresentationID$/initial.mp4" media="dash/tbtv27uc2smkxv6y5k8xpi9u/$RepresentationID$/$Number$.m4s" startNumber="0">`,            '            </SegmentTemplate>',
+            `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="$RepresentationID$/initial.mp4" media="$RepresentationID$/$Number$.m4s" startNumber="0">`, '            </SegmentTemplate>',
             '            <Representation id="1" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="95000" audioSamplingRate="44100">',
             '                <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1"/>',
             '            </Representation>',
@@ -320,21 +328,62 @@ export default class FFmpeg {
     }
 
     _logParser(data) {
-        if (data.includes('Opening') && data.includes('.m3u8')) { // Manifest update (Previous chunk is ready)
-            this._chunkStore.setCurrentChunkReady();
-        }
-        else if (data.includes('Opening') && data.includes('.ts')) { // Writing chunk started
-            const parsed = (/(.*)hls([0-9]+).ts(.*)/gm).exec(data);
-            if (parsed.length === 4) {
-                this._chunkStore.setCurrentChunk(parsed[2]);
+
+        // ------------------------------ //
+        //               HLS              //
+        // ------------------------------ //
+        if (this._protocol === 'HLS') {
+            if (data.includes('Opening') && data.includes('.m3u8')) { // Manifest update (Previous chunk is ready)
+                this._chunkStores[0].setCurrentChunkReady();
+            }
+            else if (data.includes('Opening') && data.includes('.ts')) { // Writing chunk started
+                const parsed = (/(.*)hls([0-9]+).ts(.*)/gm).exec(data);
+                if (parsed.length === 4) {
+                    this._chunkStores[0].setCurrentChunk(parsed[2]);
+                }
             }
         }
-        else if (data.includes('frame=')) { // Stats event
+
+        // ------------------------------ //
+        //               DASH             //
+        // ------------------------------ //
+        if (this._protocol === 'DASH') {
+            if (data.includes('manifest.mpd')) { // Manifest update (Previous chunk is ready)
+                this._chunkStores.forEach((cs) => { cs.setCurrentChunkReady(); })
+            }
+            else if (data.includes('Opening') && data.includes('chunk-stream')) { // Writing chunk started
+                const parsed = (/(.*)chunk-stream([0-9]+)-([0-9]+).(.*)/gm).exec(data);
+                if (parsed.length === 5) {
+                    const track = parseInt(parsed[2], 10);
+                    const id = parseInt(parsed[3], 10);
+                    this._chunkStores[track].setCurrentChunk(id);
+                }
+            }
+            else if (data.includes('Opening') && data.includes('init-stream')) { // Writing init started
+                const parsed = (/(.*)init-stream([0-9]+).(.*)/gm).exec(data);
+                if (parsed.length === 4) {
+                    const track = parseInt(parsed[2], 10);
+                    this._chunkStores[track].setCurrentChunk('initial');
+                }
+            }
+        }
+
+        // ------------------------------ //
+        //              STATS             //
+        // ------------------------------ //
+        if (data.includes('frame=')) { // Stats event
             // console.log('STATS', data);
         }
     }
 
     start() {
+        if (this._protocol === 'HLS') {
+            this._chunkStores.push(new ChunkStore());
+        }
+        else if (this._protocol === 'DASH') {
+            this._chunkStores.push(new ChunkStore(), new ChunkStore());
+        }
+
         mkdirp(this._dir, (err) => {
             if (err)
                 return;
@@ -357,6 +406,7 @@ export default class FFmpeg {
                 stdout += data;
             });
             exec.stderr.on('data', (data) => {
+                //console.log(data)
                 this._logParser(data);
                 stderr += data;
             });
