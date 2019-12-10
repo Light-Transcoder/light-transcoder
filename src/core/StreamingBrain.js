@@ -180,7 +180,7 @@ export default class StreamingBrain {
         const qualities = qualitiesFiltered.filter((e, i) => (e.videoBitrate + e.audioBitrate <= this._meta.global.bitrate / 1024 || qualitiesFiltered.findIndex((q) => (q.maxWidth === e.maxWidth && q.maxHeight === e.maxHeight)) === i))
 
         // Add a "Original" version with the same bitrate (It will be merged with the Direct stream in the future)
-        qualities.push({ audioBitrate: 512, videoBitrate: this._meta.global.bitrate, x264subme: 0, x264crf: 18, x264preset: 'veryfast', maxHeight: resolution.height, maxWidth: resolution.width, name: `Original (${resolution.width}x${resolution.height}@${Math.round(this._meta.global.bitrate / 1024)}k)` })
+        qualities.push({ audioBitrate: 512, videoBitrate: Math.round(this._meta.global.bitrate / 1024), x264subme: 0, x264crf: 18, x264preset: 'veryfast', maxHeight: resolution.height, maxWidth: resolution.width, name: `Original (${resolution.width}x${resolution.height}@${Math.round(this._meta.global.bitrate / 1024)}k)` })
 
         // Beta feature / Test => Try to direct stream file
         qualities.push({ directStreamAudio: true, directStreamVideo: true, audioBitrate: 512, videoBitrate: 18320, x264subme: 0, x264crf: 18, x264preset: 'veryfast', maxHeight: resolution.height, maxWidth: resolution.width, name: `Direct Stream (Beta)` })

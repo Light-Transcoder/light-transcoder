@@ -409,7 +409,7 @@ export default class FFmpeg {
                 stdout += data;
             });
             exec.stderr.on('data', (data) => {
-                //console.log(data)
+                console.log(data)
                 this._logParser(data);
                 stderr += data;
             });
