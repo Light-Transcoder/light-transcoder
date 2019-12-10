@@ -31,6 +31,7 @@ Note: Direct stream only works if codecs can be played in your browser
 - Support subtitle extract / burn
 - In the future, apps could send they codec map support and the StreamingBrain will choose the best protocol/codec to stream
 - Webm / VP8 / VP9 / HEVC profiles (AV1?)
+- Feat: Direct stream and ffmpeg speed limit
 
 ## API Draft (NEED TO BE UPDATED)
 
