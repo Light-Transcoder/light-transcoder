@@ -64,6 +64,7 @@ export default class FFmpeg {
         // Load input
         args.push( /*"-codec:0", "vc1", "-codec:1", "ac3",*/)
 
+        // TODO calc start based on chunk duration
         args.push('-ss', this._startAt, '-noaccurate_seek') // Personnal note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
 
         args.push("-analyzeduration", this._analyseDuration, "-probesize", this._analyseDuration, "-i", this._input);
@@ -77,7 +78,9 @@ export default class FFmpeg {
         // Scale feature
         if (!this._videoDirectStream) {
             videoFilters.push(
-                `[${videoStream}]scale=w=-2:h=${profile.height}[scale]`
+                //`[${videoStream}]scale=w=-2:h=${profile.maxHeight}[scale]`
+
+                `[${videoStream}]scale=${profile.resolution.width}:${profile.resolution.height}:force_original_aspect_ratio=disable,setdar=${profile.resolution.width}/${profile.resolution.height}[scale]`
             );
             videoStream = 'scale';
             videoFilters.push(
@@ -313,12 +316,12 @@ export default class FFmpeg {
             '        <AdaptationSet segmentAlignment="true">',
             `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="$RepresentationID$/initial.mp4" media="$RepresentationID$/$Number$.m4s" startNumber="0">`,
             '            </SegmentTemplate>',
-            '            <Representation id="0" mimeType="video/mp4" codecs="avc1.42c00d" bandwidth="50000" width="160" height="90">',
+            '            <Representation id="0" mimeType="video/mp4" codecs="avc1.4d4029" bandwidth="5838200" width="1920" height="1080">',
             '            </Representation>',
             '        </AdaptationSet>',
             '        <AdaptationSet segmentAlignment="true">',
             `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="$RepresentationID$/initial.mp4" media="$RepresentationID$/$Number$.m4s" startNumber="0">`, '            </SegmentTemplate>',
-            '            <Representation id="1" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="95000" audioSamplingRate="44100">',
+            '            <Representation id="1" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="95000" audioSamplingRate="48000">',
             '                <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1"/>',
             '            </Representation>',
             '        </AdaptationSet>',
@@ -349,7 +352,7 @@ export default class FFmpeg {
         // ------------------------------ //
         if (this._protocol === 'DASH') {
             if (data.includes('manifest.mpd')) { // Manifest update (Previous chunk is ready)
-                this._chunkStores.forEach((cs) => { cs.setCurrentChunkReady(); })
+                this._chunkStores.forEach((cs) => { console.log('CR CHK', cs.getCurrentChunkId()); cs.setCurrentChunkReady(); })
             }
             else if (data.includes('Opening') && data.includes('chunk-stream')) { // Writing chunk started
                 const parsed = (/(.*)chunk-stream([0-9]+)-([0-9]+).(.*)/gm).exec(data);
