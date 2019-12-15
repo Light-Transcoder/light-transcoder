@@ -3,8 +3,9 @@ import mkdirp from 'mkdirp'
 import ffmpeg from 'ffmpeg-static';
 import { createReadStream, stat } from 'fs';
 import { execFile } from 'child_process';
-import ChunkStore from './ChunkStore';
-import { getTimeString } from '../utils';
+import ChunkStore from '../ChunkStore';
+import FFmpegLogParser from './LogParser';
+import config from '../../config';
 
 export default class FFmpeg {
 
@@ -27,7 +28,7 @@ export default class FFmpeg {
 
         console.log(this._inputVideoStream, this._inputAudioStream)
         this._protocol = protocol;
-        this._chunkDuration = 5;
+        this._chunkDuration = config.transcode.chunkDuration;
         this._videoDirectStream = videoStreamCopy;
         this._audioDirectStream = audioStreamCopy;
         this._analyseDuration = 20000000;
@@ -40,16 +41,14 @@ export default class FFmpeg {
         this._dir = `${dir}transcoder-${this._uuid}/`;
 
         this._chunkStores = [];
+
+        this._logParser = false;
     }
 
     getChunkStores() {
         return this._chunkStores;
     }
-
-    setInput(value) {
-        this._input = value;
-    }
-
+    
     getCommand() {
         if (this._input === '')
             return;
@@ -246,10 +245,6 @@ export default class FFmpeg {
         return args;
     }
 
-    getNbChunks() {
-        return Math.ceil(this._duration / this._chunkDuration);
-    }
-
     sendChunkStream(track, id, res) {
         return new Promise((resolve, reject) => {
             let path = false;
@@ -272,121 +267,25 @@ export default class FFmpeg {
         });
     }
 
-    getHLSStream() {
-        const lastDuration = this._duration - ((this.getNbChunks() - 1) * this._chunkDuration);
-        return [
-            '#EXTM3U',
-            '#EXT-X-PLAYLIST-TYPE:VOD',
-            '#EXT-X-VERSION:3',
-            `#EXT-X-TARGETDURATION:${this._chunkDuration}`,
-            '#EXT-X-ALLOW-CACHE:YES',
-            '#EXT-X-MEDIA-SEQUENCE:0',
-            '#EXT-X-PLAYLIST-TYPE:EVENT',
-            ...Array(this.getNbChunks()).fill(true).reduce((acc, _, i) => ([
-                ...acc,
-                `#EXTINF:${(i === this.getNbChunks() - 1) ? lastDuration : this._chunkDuration}, nodesc`,
-                `0/${i}.ts`
-            ]), []),
-            '#EXT-X-ENDLIST'
-        ].join('\n');
-    }
-
-    getHLSMaster() {
-        return [
-            '#EXTM3U',
-            '#EXT-X-VERSION:3',
-            '#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=300000', // TODO BIND BANDWIDTH
-            'stream.m3u8'
-        ].join('\n');
-    }
-
-    getDashManifest() {
-        return [
-            '<?xml version="1.0" encoding="utf-8"?>',
-            '<MPD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
-            '    xmlns="urn:mpeg:dash:schema:mpd:2011"',
-            '    xmlns:xlink="http://www.w3.org/1999/xlink"',
-            '    xsi:schemaLocation="urn:mpeg:dash:schema:mpd:2011 http://standards.iso.org/ittf/PubliclyAvailableStandards/MPEG-DASH_schema_files/DASH-MPD.xsd"',
-            '    profiles="urn:mpeg:dash:profile:isoff-live:2011"',
-            '    type="static"',
-            `    mediaPresentationDuration="${getTimeString(this._duration)}"`,
-            `    maxSegmentDuration="${getTimeString(16)}"`,
-            `    minBufferTime="${getTimeString(10)}">`,
-            `    <Period start="PT0S" id="0" duration="${getTimeString(this._duration)}">`,
-            '        <AdaptationSet segmentAlignment="true">',
-            `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="$RepresentationID$/initial.mp4" media="$RepresentationID$/$Number$.m4s" startNumber="0">`,
-            '            </SegmentTemplate>',
-            '            <Representation id="0" mimeType="video/mp4" codecs="avc1.4d4029" bandwidth="5838200" width="1920" height="1080">',
-            '            </Representation>',
-            '        </AdaptationSet>',
-            '        <AdaptationSet segmentAlignment="true">',
-            `            <SegmentTemplate timescale="1" duration="${this._chunkDuration}" initialization="$RepresentationID$/initial.mp4" media="$RepresentationID$/$Number$.m4s" startNumber="0">`, '            </SegmentTemplate>',
-            '            <Representation id="1" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="95000" audioSamplingRate="48000">',
-            '                <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1"/>',
-            '            </Representation>',
-            '        </AdaptationSet>',
-            '    </Period>',
-            '</MPD>',
-        ].join('\n');
-    }
-
-    _logParser(data) {
-
-        // ------------------------------ //
-        //               HLS              //
-        // ------------------------------ //
-        if (this._protocol === 'HLS') {
-            if (data.includes('Opening') && data.includes('.m3u8')) { // Manifest update (Previous chunk is ready)
-                this._chunkStores[0].setCurrentChunkReady();
-            }
-            else if (data.includes('Opening') && data.includes('.ts')) { // Writing chunk started
-                const parsed = (/(.*)hls([0-9]+).ts(.*)/gm).exec(data);
-                if (parsed.length === 4) {
-                    this._chunkStores[0].setCurrentChunk(parsed[2]);
-                }
-            }
-        }
-
-        // ------------------------------ //
-        //               DASH             //
-        // ------------------------------ //
-        if (this._protocol === 'DASH') {
-            if (data.includes('manifest.mpd')) { // Manifest update (Previous chunk is ready)
-                this._chunkStores.forEach((cs) => { console.log('CR CHK', cs.getCurrentChunkId()); cs.setCurrentChunkReady(); })
-            }
-            else if (data.includes('Opening') && data.includes('chunk-stream')) { // Writing chunk started
-                const parsed = (/(.*)chunk-stream([0-9]+)-([0-9]+).(.*)/gm).exec(data);
-                if (parsed.length === 5) {
-                    const track = parseInt(parsed[2], 10);
-                    const id = parseInt(parsed[3], 10);
-                    this._chunkStores[track].setCurrentChunk(id);
-                }
-            }
-            else if (data.includes('Opening') && data.includes('init-stream')) { // Writing init started
-                const parsed = (/(.*)init-stream([0-9]+).(.*)/gm).exec(data);
-                if (parsed.length === 4) {
-                    const track = parseInt(parsed[2], 10);
-                    this._chunkStores[track].setCurrentChunk('initial');
-                }
-            }
-        }
-
-        // ------------------------------ //
-        //              STATS             //
-        // ------------------------------ //
-        if (data.includes('frame=')) { // Stats event
-            // console.log('STATS', data);
-        }
-    }
-
     start() {
-        if (this._protocol === 'HLS') {
+        // Init all the stores
+        const nbStore = ({ HLS: 1, DASH: 2 }[this._protocol]);
+        (new Array(nbStore)).fill('').forEach(() => {
             this._chunkStores.push(new ChunkStore());
-        }
-        else if (this._protocol === 'DASH') {
-            this._chunkStores.push(new ChunkStore(), new ChunkStore());
-        }
+        })
 
+        // Init the log parser
+        this._logParser = new FFmpegLogParser({
+            protocol: this._protocol,
+            onChunkStart: (track, id) => {
+                this._chunkStores[track].setChunkStatus(id, 'IN_PROGRESS');
+            },
+            onChunkReady: (track, id) => {
+                this._chunkStores[track].setChunkStatus(id, 'READY');
+            }
+        });
+
+        // Todo comment & clean
         mkdirp(this._dir, (err) => {
             if (err)
                 return;
@@ -394,8 +293,6 @@ export default class FFmpeg {
             const args = this.getCommand();
             console.log(`${binary} ${args.map((a) => (`"${a}"`)).join(' ')}`);
             const exec = execFile(binary, [...args], { cwd: this._dir });
-            let stdout = '';
-            let stderr = '';
             const end = () => {
                 /* resolve({
                      binary,
@@ -409,9 +306,7 @@ export default class FFmpeg {
                 stdout += data;
             });
             exec.stderr.on('data', (data) => {
-                //console.log(data)
-                this._logParser(data);
-                stderr += data;
+                this._logParser.parse(data);
             });
             exec.on('close', end);
             exec.on('exit', end);

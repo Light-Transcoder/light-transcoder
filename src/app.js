@@ -52,8 +52,7 @@ app.post('/session', async (req, res) => {
         return res.status(404).send('audio not found in body');
     const profileId = parseInt(req.body.profile, 10);
     const input = req.body.url;
-    const sb = new StreamingBrain(input);
-    const session = new Session(req.body.protocol, input, req.body.video, req.body.audio, sb, profileId);
+    const session = new Session(req.body.protocol, input, req.body.video, req.body.audio, profileId);
     session.start();
     SessionsArray[session.getUuid()] = session;
     if (req.body.protocol === 'HLS') {
@@ -121,4 +120,4 @@ const server = app.listen(config.server.port);
         });
     });
 });
-console.log(`API was launched on port ${config.server.port}`);
+console.log(`API was launched on port ${config.server.port}. Try the demo on ${config.server.public}demo/`);

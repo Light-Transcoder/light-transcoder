@@ -1,5 +1,5 @@
 import uuid from 'uuid/v4';
-import MediaAnalyzer from './MediaAnalyzer';
+import MediaAnalyzer from './analyze/MediaAnalyzer';
 
 
 export default class StreamingBrain {
