@@ -1,5 +1,5 @@
 import uuid from 'uuid/v4';
-import FFmpeg from './ffmpeg/Transcoder';
+import Transcoder from './ffmpeg/Transcoder';
 import StreamingBrain from './StreamingBrain';
 import MediaAnalyzer from './analyze/MediaAnalyzer';
 import config from '../config';
@@ -18,23 +18,14 @@ export default class Session {
         this._videoStream = videoStream;
         this._audioStream = audioStream;
         this._protocol = protocol;
-        this._ffmpeg = false;
-        this._transcoders = [];
+        this._transcoder = false;
     }
 
-    async initFFmpeg() {
-        const meta = await this._streamingBrain.getMeta();
-        const profile = (await this._streamingBrain.getProfiles())[this._profileId];
-        console.log(profile);
-        this._ffmpeg = new FFmpeg({
-            input: this._input,
-            meta,
-            profile,
-            videoStream: this._videoStream,
-            videoStreamCopy: profile.directStreamVideo,
-            audioStream: this._audioStream,
-            audioStreamCopy: profile.directStreamAudio,
-            protocol: this._protocol,
+    async initTranscoder() {
+        const profile = (await this._streamingBrain.getProfile(this._profileId));
+        const config = (await this._streamingBrain.takeDecision('', profile));
+        this._transcoder = new Transcoder({
+            config,
             dir: this._dir,
         });
         return true;
@@ -45,7 +36,9 @@ export default class Session {
     }
 
     routeSendChunk(track, id, _, res) {
-        const chunkStores = this._ffmpeg.getChunkStores();
+        if (!this._transcoder.getChunkStores)
+            return res.status(404).send('404');
+        const chunkStores = this._transcoder.getChunkStores();
         if (!chunkStores[track]) {
             return res.status(404).send('404');
         }
@@ -57,7 +50,7 @@ export default class Session {
         const callback = (x) => {
             clearTimeout(cancel);
             console.log('callback', x)
-            this._ffmpeg.sendChunkStream(track, id, res);
+            this._transcoder.sendChunkStream(track, id, res);
         }
         chunkStore.waitChunk(id, callback);
     }
@@ -84,13 +77,13 @@ export default class Session {
     }
 
     async start() {
-        if (!this._ffmpeg)
-            await this.initFFmpeg();
-        return this._ffmpeg.start();
+        if (!this._transcoder)
+            await this.initTranscoder();
+        return this._transcoder.start();
     }
 
     stop() {
-        this._ffmpeg.stop();
+        this._transcoder.stop();
     }
 
     ping() {

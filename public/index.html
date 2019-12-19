@@ -48,7 +48,7 @@
       body: JSON.stringify({ url })
     }).then(d => d.json()).then(data => {
       console.log(data.profiles)
-      const innerSelect = [...data.profiles].reverse().map((e, index) => (`<option value="${e.id}" ${!index ? 'selected' : ''}>${e.name}</option>`));
+      const innerSelect = [...data.profiles].reverse().map((e, index) => (`<option value="${e.id}" ${!index ? 'selected' : ''}>${e.height}p ${Math.round(e.bitrate / 100) / 10}M${e.original ? ' (Original)' : ''}</option>`));
       document.querySelector('#quality').innerHTML = innerSelect.join('');
 
       const innerSelectAudio = data.tracks.audio.map((e, index) => (`<option value="${e.id}" ${!index ? 'selected' : ''}>${e.language} - ${e.codec_name}</option>`));
