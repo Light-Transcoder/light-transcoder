@@ -73,11 +73,31 @@
     fetch('http://localhost:8585/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, profile, video, audio, subtitle, protocol })
+      body: JSON.stringify({
+        url,
+        profile,
+        video,
+        audio,
+        subtitle,
+        protocol,
+        supported: [{
+          "type": "HLS",
+          "video": [
+            { "codec": "h264" },
+            { "codec": "webm" },
+          ],
+          "audio": [
+            { "codec": "aac" },
+            { "codec": "ogg" },
+          ]
+        }]
+
+
+      })
     }).then(d => d.json()).then(data => {
       console.log(data.session.stream.url)
 
-      var manifestUri = data.session.stream.url;
+      var manifestUri = /*'http://localhost:8585/demo/dash/manifest.mpd'*/  data.session.stream.url;
 
       function initPlayer() {
         // Create a Player instance.
@@ -86,11 +106,11 @@
         playerObject.configure({
           streaming: {
             retryParameters: {
-              timeout: 60000,       // timeout in ms, after which we abort; 0 means never
-              maxAttempts: 30000,   // the maximum number of requests before we fail
-              baseDelay: 5000,  // the base delay in ms between retries
-              backoffFactor: 2, // the multiplicative backoff factor between retries
-              fuzzFactor: 0.5,  // the fuzz factor to apply to each retry delay
+              timeout: 10000,       // timeout in ms, after which we abort; 0 means never
+              maxAttempts: 50,   // the maximum number of requests before we fail
+              baseDelay: 0,  // the base delay in ms between retries
+              backoffFactor:0, // the multiplicative backoff factor between retries
+              fuzzFactor: 0,  // the fuzz factor to apply to each retry delay
             }
           }
         });

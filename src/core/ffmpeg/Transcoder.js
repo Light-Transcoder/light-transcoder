@@ -32,7 +32,7 @@ export default class FFmpeg {
         this._videoDirectStream = videoStreamCopy;
         this._audioDirectStream = audioStreamCopy;
         this._analyseDuration = 20000000;
-        this._outputFPS = 23.975999999999999;
+        this._outputFPS = 30000 / 1001;
         this._useAdaptativePreset = true;
         this._startAt = parseInt(0, 10); // In seconds
         this._duration = (meta && meta.global.duration) ? meta.global.duration : 60 * 60 * 2; // Fallback to 2h if not available
@@ -48,7 +48,7 @@ export default class FFmpeg {
     getChunkStores() {
         return this._chunkStores;
     }
-    
+
     getCommand() {
         if (this._input === '')
             return;
@@ -209,10 +209,10 @@ export default class FFmpeg {
         args.push(
             "-start_at_zero",
             "-copyts",
-            ...((this._startAt === 0) ? [
-                "-vsync",
-                "cfr"
-            ] : [])
+            // ...((this._startAt === 0) ? [
+            "-vsync",
+            "cfr"
+            //] : [])
         )
 
         // Debug off
@@ -259,10 +259,22 @@ export default class FFmpeg {
             stat(path, (err) => {
                 if (err)
                     return reject(err);
-                const stream = createReadStream(path);
-                stream.pipe(res);
-                stream.on('finish', () => { return resolve(id) });
-                stream.on('error', (err) => { return reject(id, err) });
+               /* if (track == 0) {
+                    console.log('Set mime video');
+                    res.type('video/mp4')
+                }
+                if (track == 1) {
+                    console.log('Set mime audio');
+                    res.type('audio/mp4')
+                }*/
+//setTimeout(() => {
+    const stream = createReadStream(path);
+               
+    stream.on('end', () => { res.end(); return resolve(id) });
+    stream.on('error', (err) => { res.end();  return reject(id, err) });
+    stream.pipe(res);
+//}, 2000)
+              
             });
         });
     }

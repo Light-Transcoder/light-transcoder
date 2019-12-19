@@ -52,14 +52,20 @@ export default class FFmpegLogParser {
         if (this._protocol === 'DASH') {
             if (data.includes('manifest.mpd')) { // Manifest update (Previous chunks are ready)
                 Object.keys(this._currentChunks).map((k) => {
-                    this._onChunkReady(intCast(k), chunkCast(this._currentChunks[k]));
+                    if (this._currentChunks[k] !== 'initial')
+                        this._onChunkReady(intCast(k), chunkCast(this._currentChunks[k]));
                 });
             }
-            else if (data.includes('Opening') && data.includes('chunk-stream')) { // Writing chunk started
+            else if (data.includes('Opening') && data.includes('chunk-stream')) {
                 const parsed = (/(.*)chunk-stream([0-9]+)-([0-9]+).(.*)/gm).exec(data);
                 if (parsed.length === 5) {
                     const track = intCast(parsed[2]);
                     const id = chunkCast(parsed[3]);
+
+                    // If we need to send an initial, we can do it because a chunk is ready
+                    if (this._currentChunks[track] === 'initial')
+                        this._onChunkReady(track, chunkCast('initial'));
+                    
                     this._currentChunks[track] = id;
                     this._onChunkStart(track, id);
                 }
@@ -68,6 +74,7 @@ export default class FFmpegLogParser {
                 const parsed = (/(.*)init-stream([0-9]+).(.*)/gm).exec(data);
                 if (parsed.length === 4) {
                     const track = parseInt(parsed[2], 10);
+                    this._currentChunks[track] = 'initial';
                     this._onChunkStart(track, 'initial');
                 }
             }
@@ -80,5 +87,7 @@ export default class FFmpegLogParser {
             // console.log('STATS', data);
             this._onStats(data);
         }
+
+        console.log(data)
     }
 }

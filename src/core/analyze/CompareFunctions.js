@@ -30,12 +30,14 @@ export const getDuration = (meta) => {
 
 /*
     Supported containers tests
+    - "*"
     - "mkv"
     - "mp4"
 */
 export const compareContainer = (meta, container) => {
     const source = getContainer(meta).format_name;
     const match = ([
+        (container === '*'),
         (container === 'mp4' && source === 'mp4'),
         (container === 'mkv' && source.includes('matroska'))
     ].filter((e) => (!!e)).length > 0)
@@ -45,12 +47,14 @@ export const compareContainer = (meta, container) => {
 
 /*
     Supported video codecs tests
+    - "*"
     - "h264" / "x264"
 */
 export const compareVideoCodec = (meta, trackId, codec) => {
     const track = getVideoTracks(meta)[trackId];
     const source = track.codec_name;
     const match = ([
+        (codec === '*'),
         ((codec === 'h264' || codec === 'x264') && source === 'h264'),
     ].filter((e) => (!!e)).length > 0)
     console.log(`Compare video codec: (${source} // ${container}) => ${match ? 'true' : 'false'}`);
@@ -59,12 +63,14 @@ export const compareVideoCodec = (meta, trackId, codec) => {
 
 /*
     Supported audio codecs tests
+    - "*"
     - "opus"
 */
 export const compareAudioCodec = (meta, trackId, codec) => {
     const track = getAudioTracks(meta)[trackId];
     const source = track.codec_name;
     const match = ([
+        (codec === '*'),
         (codec === 'opus' && source === 'opus'),
     ].filter((e) => (!!e)).length > 0)
     console.log(`Compare audio codec: (${source} // ${container}) => ${match ? 'true' : 'false'}`);

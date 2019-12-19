@@ -66,14 +66,87 @@ export default class StreamingBrain {
             audio: audioStreams,
             subtitle: [],
         }
+    }
+
+    async takeDecision() {
+
+
+        return [
+            {
+                type: 'video',
+                codec: {
+                    type: 'x264',
+                    options: {
+                        x264subme: 0,
+                        x264crf: 22,
+                        x264preset: 'fast',
+                    },
+                },
+                bitrate: 512,
+                framerate: '30000/1001',
+                resolution: {
+                    width: 1920,
+                    height: 1080,
+                },
+                meta: {},
+            },
+            {
+                type: 'audio',
+                codec: {
+                    type: 'opus',
+                },
+                channels: 2,
+                bitrate: 128,
+                meta: {}
+            }
+        ]
 
     }
+
+
+    /*
+        async takeDecision(compatibilityMap = [{
+            "type": "HLS",
+            "video": [
+                { "codec": "h264" },
+                { "codec": "webm" },
+            ],
+            "audio": [
+                { "codec": "aac" },
+                { "codec": "ogg" },
+            ]
+        }, {
+            "type": "DOWNLOAD",
+            "format": [
+                { "container": "mp4" },
+                { "container": "webm" },
+            ],
+            "video": [
+                { "codec": "h264" },
+                { "codec": "webm" },
+            ],
+            "audio": [
+                { "codec": "aac" },
+                { "codec": "ogg" },
+            ]
+        }]) {
+            const protocolOrder = ['DOWNLOAD', 'HLS'];
+     
+     
+     
+     
+     
+     
+        }
+     
+       */
+
     /*
         exp() {
-    
-    
-    
-    
+     
+     
+     
+     
             const exp = {
                 format: 'HLS',
                 //quickSwitch: false,
@@ -107,10 +180,10 @@ export default class StreamingBrain {
                     codec: 'burn/extract',
                     bitrate: 568
                 ]
-    
+     
             }
-    
-    
+     
+     
         }
     */
 
@@ -150,7 +223,7 @@ export default class StreamingBrain {
         if (width <= maxWidth && height <= maxHeight)
             return { width, height, resized: false };
 
-        // We need to make %2 values (Else, we will have issues with ffmpeg)
+        // We need to calc %2 values (Else, we will have issues with ffmpeg)
         const widthCase1 = Math.ceil(maxWidth) - (Math.ceil(maxWidth) % 2 !== 0);
         const heightCase1 = Math.ceil(maxWidth / ratio) - (Math.ceil(maxWidth / ratio) % 2 !== 0);
         const widthCase2 = Math.ceil(maxHeight * ratio) - (Math.ceil(maxHeight * ratio) % 2 !== 0);
