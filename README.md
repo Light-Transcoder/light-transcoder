@@ -17,11 +17,9 @@ Note: Direct stream only works if codecs can be played in your browser
 # To Do
 - Improve this Readme (WiP)
 - Document the API
-- Support Dash stream (WiP)
 - Support Long Polling stream
 - Support Download
 - Support "Optimize"
-- Improve the ChunkStore
 - Extract ffmpeg status (speed / informations)
 - Seek support (Ask not generated chunk should move the transcoder)
 - Detect input codec and bind the correct decoder

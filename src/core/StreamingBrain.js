@@ -1,19 +1,10 @@
-import uuid from 'uuid/v4';
 import MediaAnalyzer from './analyze/MediaAnalyzer';
-
 
 export default class StreamingBrain {
 
     constructor(input = '') {
-        this._uuid = uuid();
         this._input = input;
         this._meta = false;
-        this._analyzer = new MediaAnalyzer(input);
-
-        this.allowedVideoCodecs = ['H264', 'HEVC', 'COPY'];
-        this.allowedAudioCodecs = ['AAC', 'OGG', 'COPY'];
-        this.allowedSubtitlesCodecs = ['EXTRACT', 'BURN'] // WTF ?
-        this.allowedStreamModes = ['HLS', 'DASH', 'LP', 'DOWNLOAD'];
     }
 
     async getMeta() {
@@ -22,7 +13,7 @@ export default class StreamingBrain {
 
     async analyse() {
         if (!this._meta)
-            this._meta = await this._analyzer.analyze();
+            this._meta = await (new MediaAnalyzer(this._input)).analyze();
         return this._meta;
     }
 
@@ -53,46 +44,54 @@ export default class StreamingBrain {
         }
     }
 
-    async takeDecision(input, profile) {
-console.log(profile)
-
+    async takeDecision(profile, videoStreams, audioStreams) {
+        const videoStreamsMeta = this._meta.meta.streams.filter(e => (e.codec_type === 'video'));
+        const audioStreamsMeta = this._meta.meta.streams.filter(e => (e.codec_type === 'audio'));
         await this.analyse();
         return {
             protocol: 'DASH',
-            duration: 3*60+35,
+            duration: this._meta.global.duration,
             chunkDuration: profile.chunkDuration,
             startAt: 0,
-            streams: [{
-                id: 0,
-                type: 'video',
-                path: 'http://localhost:8585/demo/test.mkv',
-                codec: {
-                    type: 'libx264',
-                    options: {
-                        x264subme: profile.x264subme,
-                        x264crf: profile.x264crf,
-                        x264preset: profile.x264preset,
+            streams: [
+                ...videoStreams.map((id) => ({
+                    id,
+                    type: 'video',
+                    path: this._input,
+                    language: 'und',
+                    codec: {
+                        type: 'libx264', // FFmpeg encoder
+                        chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
+                        name: 'avc1.640028', // RFC6381 value
+                        options: {
+                            x264subme: profile.x264subme,
+                            x264crf: profile.x264crf,
+                            x264preset: profile.x264preset,
+                        },
                     },
-                },
-                bitrate: profile.videoBitrate,
-                framerate: '30000/1001',
-                resolution: {
-                    width: profile.width,
-                    height: profile.height,
-                },
-                meta: {},
-            },
-            {
-                id: 0,
-                type: 'audio',
-                path: 'http://localhost:8585/demo/test.mkv',
-                codec: {
-                    type: 'aac',
-                },
-                channels: 2,
-                bitrate: profile.audioBitrate,
-                meta: {},
-            }]
+                    bitrate: profile.videoBitrate,
+                    framerate: '30000/1001',
+                    resolution: {
+                        width: profile.width,
+                        height: profile.height,
+                    },
+                    meta: videoStreamsMeta[id],
+                })),
+                ...audioStreams.map((id) => ({
+                    id,
+                    type: 'audio',
+                    path: this._input,
+                    language: 'und',
+                    codec: {
+                        type: 'aac', // FFmpeg encoder
+                        chunkFormat: 'mp4', // Chunk output file format (dash and hls only support 'mp4')
+                        name: 'mp4a.40.2', // RFC6381 value
+                    },
+                    channels: 2,
+                    bitrate: profile.audioBitrate,
+                    meta: audioStreamsMeta[id],
+                }))
+            ]
         }
 
     }
@@ -168,7 +167,7 @@ console.log(profile)
             { height: 720, width: 1280, bitrates: [2000, 3000, 4000] },
             { height: 1080, width: 1920, bitrates: [8000, 10000, 12000, 20000] },
             { height: 1440, width: 2560, bitrates: [22000, 30000] },
-            { height: 2160, width: 3840, bitrates: [50000, 60000, 70000] },
+            { height: 2160, width: 3840, bitrates: [50000, 60000, 70000, 80000] },
             { height: 4320, width: 7680, bitrates: [140000] },
         ];
 

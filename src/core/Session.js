@@ -8,7 +8,7 @@ import HlsManifest from './manifest/Hls'
 
 export default class Session {
 
-    constructor(protocol = 'HLS', input = '', videoStream = '0:v:0', audioStream = '0:a:0', profileId = 0) {
+    constructor(protocol = 'HLS', input = '', videoStream = '0', audioStream = '0', profileId = 0) {
         this._uuid = uuid();
         this._dir = `./tmp/session-${this._uuid}/`
         this._streamingBrain = new StreamingBrain(input);
@@ -21,9 +21,18 @@ export default class Session {
         this._transcoder = false;
     }
 
-    async initTranscoder() {
+    async getConfig() {
         const profile = (await this._streamingBrain.getProfile(this._profileId));
-        const config = (await this._streamingBrain.takeDecision('', profile));
+        const config = (await this._streamingBrain.takeDecision(profile, [this._videoStream], [this._audioStream]));
+        return config;
+    }
+
+
+    async initTranscoder() {
+        const config = await this.getConfig();
+
+console.log('CONFIG', config)
+
         this._transcoder = new Transcoder({
             config,
             dir: this._dir,
@@ -46,7 +55,7 @@ export default class Session {
         const cancel = setTimeout(() => {
             chunkStore.waitChunkCancel(id, callback);
             res.status(404).send('404')
-        }, 10000);
+        }, 3000);
         const callback = (x) => {
             clearTimeout(cancel);
             console.log('callback', x)
@@ -56,22 +65,22 @@ export default class Session {
     }
 
     async routeSendDashManifest(_, res) {
-        const duration = await this._mediaAnalyzer.getDuration();
-        const manifest = (new DashManifest({ duration, chunkDuration: config.transcode.chunkDuration })).getManifest();
+        const config = await this.getConfig();
+        const manifest = (new DashManifest(config)).getManifest();
         manifest.headers.forEach(e => (res.set(e[0], e[1])))
         return res.send(manifest.content);
     }
 
     async routeSendHLSMaster(_, res) {
-        const duration = await this._mediaAnalyzer.getDuration();
-        const manifest = (new HlsManifest({ duration, chunkDuration: config.transcode.chunkDuration })).getMaster();
+        const config = await this.getConfig();
+        const manifest = (new HlsManifest(config)).getMaster();
         manifest.headers.forEach(e => (res.set(e[0], e[1])))
         return res.send(manifest.content);
     }
 
     async routeSendHLSStream(_, res) {
-        const duration = await this._mediaAnalyzer.getDuration();
-        const manifest = (new HlsManifest({ duration, chunkDuration: config.transcode.chunkDuration })).getStream();
+        const config = await this.getConfig();
+        const manifest = (new HlsManifest(config)).getStream();
         manifest.headers.forEach(e => (res.set(e[0], e[1])))
         return res.send(manifest.content);
     }
@@ -82,11 +91,11 @@ export default class Session {
         return this._transcoder.start();
     }
 
-    stop() {
+    /*stop() {
         this._transcoder.stop();
     }
 
     ping() {
 
-    }
+    }*/
 }
