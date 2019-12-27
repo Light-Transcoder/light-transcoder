@@ -1,4 +1,4 @@
-export const getTimeString = (time = 0) => (`PT${Math.floor(time / 3600)}H${Math.floor(time / 60)}M${time % 60}S`);
+export const getTimeString = (time = 0) => (`PT${Math.floor(time / 3600)}H${Math.floor(time / 60)}M${Math.round(time % 60)}S`);
 
 export const getNbChunks = (duration = 0, chunkDuration = 1) => (Math.ceil(duration / chunkDuration));
 
