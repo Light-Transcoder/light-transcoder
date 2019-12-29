@@ -13,7 +13,7 @@ export default class MediaAnalyzer {
     }
 
     async _analyzeExec() {
-        const data = await exec(ffprobe.path, ['-of', 'json', '-show_streams', '-show_format', this._input], './')
+        const data = await exec(ffprobe.path, ['-of', 'json', '-show_streams', '-show_format', '-show_chapters', this._input], './')
         try {
             this._meta = JSON.parse(data.stdout);
             if (JSON.stringify(this._meta) === '{}')

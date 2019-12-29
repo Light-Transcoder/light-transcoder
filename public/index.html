@@ -24,8 +24,8 @@
   <select id="quality"></select>
 
   <select id="protocol">
-    <option value="HLS" selected>HLS</option>
-    <option value="DASH">DASH</option>
+    <option value="DASH" selected>DASH</option>
+    <option value="HLS">HLS</option>
     <option value="LP" disabled>Long-Polling</option>
     <option value="DOWNLOAD" disabled>Download</option>
   </select>
@@ -109,7 +109,7 @@
               timeout: 10000,       // timeout in ms, after which we abort; 0 means never
               maxAttempts: 50,   // the maximum number of requests before we fail
               baseDelay: 0,  // the base delay in ms between retries
-              backoffFactor:0, // the multiplicative backoff factor between retries
+              backoffFactor: 0, // the multiplicative backoff factor between retries
               fuzzFactor: 0,  // the fuzz factor to apply to each retry delay
             }
           }

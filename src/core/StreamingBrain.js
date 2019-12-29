@@ -1,4 +1,5 @@
 import MediaAnalyzer from './analyze/MediaAnalyzer';
+import { compareVideoCodecArray, compareAudioCodecArray, getFramerate, getBitrate, getLanguage } from './analyze/CompareFunctions';
 
 export default class StreamingBrain {
 
@@ -25,14 +26,14 @@ export default class StreamingBrain {
 
         const videoStreams = this._meta.meta.streams.filter(e => (e.codec_type === 'video')).map((e, i) => ({
             id: i,
-            language: e.tags && e.tags.LANGUAGE || 'und',
+            language: getLanguage(e),
             codec: e.codec_name || 'unknown',
             codec_name: e.codec_long_name || 'Unknown',
         }));
 
         const audioStreams = this._meta.meta.streams.filter(e => (e.codec_type === 'audio')).map((e, i) => ({
             id: i,
-            language: e.tags && e.tags.LANGUAGE || 'und',
+            language: getLanguage(e),
             codec: e.codec_name || 'unknown',
             codec_name: e.codec_long_name || 'Unknown',
         }));
@@ -58,11 +59,12 @@ export default class StreamingBrain {
                     id,
                     type: 'video',
                     path: this._input,
-                    language: 'und',
+                    language: getLanguage(videoStreamsMeta[id]),
                     codec: {
-                        type: 'libx264', // FFmpeg encoder
+                        encoder: (profile.videoBitrate - 50 < getBitrate(videoStreamsMeta[id]) || profile.resized || !compareVideoCodecArray(videoStreamsMeta[id], ['x264', 'av1', 'vp8', 'vp9'])) ? 'libx264' : 'copy', // FFmpeg encoder
+                        decoder: false, // FFmpeg decoder
                         chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-                        name: 'avc1.640028', // RFC6381 value
+                        name: 'avc1.640028', // RFC6381 value (For dash manifest)
                         options: {
                             x264subme: profile.x264subme,
                             x264crf: profile.x264crf,
@@ -70,7 +72,7 @@ export default class StreamingBrain {
                         },
                     },
                     bitrate: profile.videoBitrate,
-                    framerate: '30000/1001',
+                    framerate: getFramerate(videoStreamsMeta[id]),
                     resolution: {
                         width: profile.width,
                         height: profile.height,
@@ -81,11 +83,12 @@ export default class StreamingBrain {
                     id,
                     type: 'audio',
                     path: this._input,
-                    language: 'und',
+                    language: getLanguage(audioStreamsMeta[id]),
                     codec: {
-                        type: 'aac', // FFmpeg encoder
-                        chunkFormat: 'mp4', // Chunk output file format (dash and hls only support 'mp4')
-                        name: 'mp4a.40.2', // RFC6381 value
+                        encoder: (profile.audioBitrate - 50  < getBitrate(audioStreamsMeta[id]) || !compareAudioCodecArray(audioStreamsMeta[id], ['aac', /*'mp3', 'ogg', 'opus'*/])) ? 'aac' : 'copy', // FFmpeg encoder
+                        decoder: false, // FFmpeg decoder
+                        chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
+                        name: 'mp4a.40.2', // RFC6381 value (For dash manifest)
                     },
                     channels: 2,
                     bitrate: profile.audioBitrate,

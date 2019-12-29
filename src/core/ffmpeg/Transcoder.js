@@ -51,7 +51,7 @@ export default class Transcoder {
         /* 
         TODO
         // Bind codecs
-        args.push("-codec:0", "vc1", "-codec:1", "ac3",)
+        args.push('-codec:0', 'vc1', '-codec:1', 'ac3',)
 
         // TODO calc start based on chunk duration
         args.push('-ss', this._startAt, '-noaccurate_seek') // Personnal note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
@@ -73,7 +73,7 @@ export default class Transcoder {
             if (stream.type === 'video') {
 
                 // It's a direct stream
-                if (stream.codec.type === 'copy') {
+                if (stream.codec.encoder === 'copy') {
                     map.push(streamTag);
                 }
                 // Transcoded stream
@@ -95,7 +95,7 @@ export default class Transcoder {
             else if (stream.type === 'audio') {
 
                 // It's a direct stream
-                if (stream.codec.type === 'copy') {
+                if (stream.codec.encoder === 'copy') {
                     map.push(streamTag);
                 }
                 // Transcoded stream
@@ -126,7 +126,7 @@ export default class Transcoder {
             if (stream.type === 'video') {
 
                 // It's a direct stream
-                if (stream.codec.type === 'copy') {
+                if (stream.codec.encoder === 'copy') {
                     args.push(
                         `-codec:${idx}`,
                         'copy',
@@ -138,7 +138,7 @@ export default class Transcoder {
                 else {
                     args.push(
                         `-codec:${idx}`,
-                        stream.codec.type,
+                        stream.codec.encoder,
                         `-crf:${idx}`,
                         stream.codec.options.x264crf,
                         `-maxrate:${idx}`,
@@ -160,17 +160,17 @@ export default class Transcoder {
             else if (stream.type === 'audio') {
 
                 // It's a direct stream
-                if (stream.codec.type === 'copy') {
+                if (stream.codec.encoder === 'copy') {
                     args.push(
                         `-codec:${idx}`,
-                        "copy"
+                        'copy'
                     );
                 }
                 // Transcoded stream
                 else {
                     args.push(
                         `-codec:${idx}`,
-                        stream.codec.type,
+                        stream.codec.encoder,
                         `-b:${idx}`,
                         `${stream.bitrate}k`
                     );
@@ -195,11 +195,13 @@ export default class Transcoder {
         // DASH
         else if (this._config.protocol === 'DASH') {
             args.push(
-                "-f",
-                "dash",
-                "-seg_duration",
+                '-f',
+                'dash',
+                '-seg_duration',
                 this._config.chunkDuration,
-                "manifest.mpd",
+                '-dash_segment_type',
+                'mp4',
+                'manifest.mpd',
             );
         }
         // LONG-POLLING
@@ -212,18 +214,18 @@ export default class Transcoder {
         }
 
         args.push(
-            "-start_at_zero",
-            "-copyts",
+            '-start_at_zero',
+            '-copyts',
             ...((this._config.startAt === 0) ? [
-                "-vsync",
-                "cfr"
+                '-vsync',
+                'cfr'
             ] : [])
         );
 
         // Enable verbose logs to catch FFmpeg events
         args.push(
-            "-loglevel",
-            "verbose",
+            '-loglevel',
+            'verbose',
         );
 
         // Overwrite files
@@ -262,7 +264,7 @@ export default class Transcoder {
                 return;
             const binary = ffmpeg.path;
             const args = this.getCommand();
-            console.log(`${binary} ${args.map((a) => (`"${a}"`)).join(' ')}`);
+            console.log(`${binary} ${args.map((a) => (`'${a}'`)).join(' ')}`);
             const exec = execFile(binary, [...args], { cwd: this._dir });
             const end = () => {
                 /* resolve({
