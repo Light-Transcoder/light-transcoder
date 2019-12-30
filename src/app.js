@@ -40,15 +40,15 @@ app.post('/session', async (req, res) => {
 
     // Todo verify value and check profile / video/audio/protocol
 
-    if (!req.body.url)
+    if (typeof(req.body.url) === 'undefined')
         return res.status(404).send('url not found in body');
-    if (!req.body.profile)
+    if (typeof(req.body.profile) === 'undefined')
         return res.status(404).send('profile not found in body');
-    if (!req.body.protocol)
+    if (typeof(req.body.protocol) === 'undefined')
         return res.status(404).send('protocol not found in body');
-    if (!req.body.video)
+    if (typeof(req.body.video) === 'undefined')
         return res.status(404).send('video not found in body');
-    if (!req.body.audio)
+    if (typeof(req.body.audio) === 'undefined')
         return res.status(404).send('audio not found in body');
     const profileId = parseInt(req.body.profile, 10);
     const input = req.body.url;
@@ -112,7 +112,9 @@ app.get('/session/:sessionid/hls/:track/:id.ts', (req, res) => {
     session.routeSendChunk(req.params.track, req.params.id, req, res);
 });
 
-app.use('/demo', express.static('public'));
+// Front demo
+app.use('/web-legacy', express.static('public/web-legacy'));
+app.use('/web', express.static('public/web'));
 
 // Bind and start
 const server = app.listen(config.server.port);
@@ -126,4 +128,4 @@ const server = app.listen(config.server.port);
         });
     });
 });
-console.log(`API was launched on port ${config.server.port}. Try the demo on ${config.server.public}demo/`);
+console.log(`API was launched on port ${config.server.port}. Try the demo on ${config.server.public}web/`);
