@@ -1,5 +1,5 @@
 import uuid from 'uuid/v4';
-import FFmpeg from './ffmpeg/Transcoder';
+import Transcoder from './ffmpeg/Transcoder';
 import StreamingBrain from './StreamingBrain';
 import MediaAnalyzer from './analyze/MediaAnalyzer';
 import config from '../config';
@@ -8,7 +8,7 @@ import HlsManifest from './manifest/Hls'
 
 export default class Session {
 
-    constructor(protocol = 'HLS', input = '', videoStream = '0:v:0', audioStream = '0:a:0', profileId = 0) {
+    constructor(protocol = 'HLS', input = '', videoStream = '0', audioStream = '0', profileId = 0) {
         this._uuid = uuid();
         this._dir = `./tmp/session-${this._uuid}/`
         this._streamingBrain = new StreamingBrain(input);
@@ -18,23 +18,23 @@ export default class Session {
         this._videoStream = videoStream;
         this._audioStream = audioStream;
         this._protocol = protocol;
-        this._ffmpeg = false;
-        this._transcoders = [];
+        this._transcoder = false;
     }
 
-    async initFFmpeg() {
-        const meta = await this._streamingBrain.getMeta();
-        const profile = (await this._streamingBrain.getProfiles())[this._profileId];
-        console.log(profile);
-        this._ffmpeg = new FFmpeg({
-            input: this._input,
-            meta,
-            profile,
-            videoStream: this._videoStream,
-            videoStreamCopy: profile.directStreamVideo,
-            audioStream: this._audioStream,
-            audioStreamCopy: profile.directStreamAudio,
-            protocol: this._protocol,
+    async getConfig() {
+        const profile = (await this._streamingBrain.getProfile(this._profileId));
+        const config = (await this._streamingBrain.takeDecision(profile, [this._videoStream], [this._audioStream]));
+        return config;
+    }
+
+
+    async initTranscoder() {
+        const config = await this.getConfig();
+
+console.log('CONFIG', config)
+
+        this._transcoder = new Transcoder({
+            config,
             dir: this._dir,
         });
         return true;
@@ -45,7 +45,9 @@ export default class Session {
     }
 
     routeSendChunk(track, id, _, res) {
-        const chunkStores = this._ffmpeg.getChunkStores();
+        if (!this._transcoder.getChunkStores)
+            return res.status(404).send('404');
+        const chunkStores = this._transcoder.getChunkStores();
         if (!chunkStores[track]) {
             return res.status(404).send('404');
         }
@@ -53,47 +55,47 @@ export default class Session {
         const cancel = setTimeout(() => {
             chunkStore.waitChunkCancel(id, callback);
             res.status(404).send('404')
-        }, 10000);
+        }, 3000);
         const callback = (x) => {
             clearTimeout(cancel);
             console.log('callback', x)
-            this._ffmpeg.sendChunkStream(track, id, res);
+            this._transcoder.sendChunkStream(track, id, res);
         }
         chunkStore.waitChunk(id, callback);
     }
 
     async routeSendDashManifest(_, res) {
-        const duration = await this._mediaAnalyzer.getDuration();
-        const manifest = (new DashManifest({ duration, chunkDuration: config.transcode.chunkDuration })).getManifest();
+        const config = await this.getConfig();
+        const manifest = (new DashManifest(config)).getManifest();
         manifest.headers.forEach(e => (res.set(e[0], e[1])))
         return res.send(manifest.content);
     }
 
     async routeSendHLSMaster(_, res) {
-        const duration = await this._mediaAnalyzer.getDuration();
-        const manifest = (new HlsManifest({ duration, chunkDuration: config.transcode.chunkDuration })).getMaster();
+        const config = await this.getConfig();
+        const manifest = (new HlsManifest(config)).getMaster();
         manifest.headers.forEach(e => (res.set(e[0], e[1])))
         return res.send(manifest.content);
     }
 
     async routeSendHLSStream(_, res) {
-        const duration = await this._mediaAnalyzer.getDuration();
-        const manifest = (new HlsManifest({ duration, chunkDuration: config.transcode.chunkDuration })).getStream();
+        const config = await this.getConfig();
+        const manifest = (new HlsManifest(config)).getStream();
         manifest.headers.forEach(e => (res.set(e[0], e[1])))
         return res.send(manifest.content);
     }
 
     async start() {
-        if (!this._ffmpeg)
-            await this.initFFmpeg();
-        return this._ffmpeg.start();
+        if (!this._transcoder)
+            await this.initTranscoder();
+        return this._transcoder.start();
     }
 
-    stop() {
-        this._ffmpeg.stop();
+    /*stop() {
+        this._transcoder.stop();
     }
 
     ping() {
 
-    }
+    }*/
 }

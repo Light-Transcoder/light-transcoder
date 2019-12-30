@@ -40,25 +40,31 @@ app.post('/session', async (req, res) => {
 
     // Todo verify value and check profile / video/audio/protocol
 
-    if (!req.body.url)
+    if (typeof(req.body.url) === 'undefined')
         return res.status(404).send('url not found in body');
-    if (!req.body.profile)
+    if (typeof(req.body.profile) === 'undefined')
         return res.status(404).send('profile not found in body');
-    if (!req.body.protocol)
+    if (typeof(req.body.protocol) === 'undefined')
         return res.status(404).send('protocol not found in body');
-    if (!req.body.video)
+    if (typeof(req.body.video) === 'undefined')
         return res.status(404).send('video not found in body');
-    if (!req.body.audio)
+    if (typeof(req.body.audio) === 'undefined')
         return res.status(404).send('audio not found in body');
     const profileId = parseInt(req.body.profile, 10);
     const input = req.body.url;
     const session = new Session(req.body.protocol, input, req.body.video, req.body.audio, profileId);
     session.start();
     SessionsArray[session.getUuid()] = session;
-    if (req.body.protocol === 'HLS') {
-        res.send({ session: { uuid: session.getUuid(), stream: { type: 'HLS', url: `${config.server.public}session/${session.getUuid()}/hls/master.m3u8` } } });
-    } else if (req.body.protocol === 'DASH') {
-        res.send({ session: { uuid: session.getUuid(), stream: { type: 'DASH', url: `${config.server.public}session/${session.getUuid()}/dash/manifest.mpd` } } });
+    if (req.body.protocol === 'HLS' || req.body.protocol === 'DASH') {
+        res.send({
+            session: {
+                uuid: session.getUuid(),
+                stream: {
+                    type: req.body.protocol,
+                    url: `${config.server.public}session/${session.getUuid()}/${(req.body.protocol === 'HLS') ? 'hls/master.m3u8' : 'dash/manifest.mpd'}`
+                }
+            }
+        });
     } else {
         res.send('ERROR')
     }
@@ -75,7 +81,7 @@ app.get('/session/:sessionid/dash/:track/:id.m4s', (req, res) => {
     const session = SessionsArray[req.params.sessionid];
     if (!session)
         return res.status(404).send('404');
-    session.routeSendChunk(req.params.track, parseInt(req.params.id, 10) + 1 , req, res);
+    session.routeSendChunk(req.params.track, parseInt(req.params.id, 10) + 1, req, res);
 });
 
 app.get('/session/:sessionid/dash/:track/initial.mp4', (req, res) => {
@@ -106,7 +112,9 @@ app.get('/session/:sessionid/hls/:track/:id.ts', (req, res) => {
     session.routeSendChunk(req.params.track, req.params.id, req, res);
 });
 
-app.use('/demo', express.static('public'));
+// Front demo
+app.use('/web-legacy', express.static('public/web-legacy'));
+app.use('/web', express.static('public/web'));
 
 // Bind and start
 const server = app.listen(config.server.port);
@@ -120,4 +128,4 @@ const server = app.listen(config.server.port);
         });
     });
 });
-console.log(`API was launched on port ${config.server.port}. Try the demo on ${config.server.public}demo/`);
+console.log(`API was launched on port ${config.server.port}. Try the demo on ${config.server.public}web/`);

@@ -12,7 +12,7 @@
 
 <body>
 
-  <input value="http://localhost:8585/demo/test.mkv" id="url" />
+  <input value="http://localhost:8585/web-legacy/test.mkv" id="url" />
   <button id="load">Load file</button>
 
 
@@ -24,8 +24,8 @@
   <select id="quality"></select>
 
   <select id="protocol">
-    <option value="HLS" selected>HLS</option>
-    <option value="DASH">DASH</option>
+    <option value="DASH" selected>DASH</option>
+    <option value="HLS">HLS</option>
     <option value="LP" disabled>Long-Polling</option>
     <option value="DOWNLOAD" disabled>Download</option>
   </select>
@@ -48,7 +48,7 @@
       body: JSON.stringify({ url })
     }).then(d => d.json()).then(data => {
       console.log(data.profiles)
-      const innerSelect = [...data.profiles].reverse().map((e, index) => (`<option value="${e.id}" ${!index ? 'selected' : ''}>${e.name}</option>`));
+      const innerSelect = [...data.profiles].reverse().map((e, index) => (`<option value="${e.id}" ${!index ? 'selected' : ''}>${e.height}p ${Math.round(e.bitrate / 100) / 10}M${e.original ? ' (Original)' : ''}</option>`));
       document.querySelector('#quality').innerHTML = innerSelect.join('');
 
       const innerSelectAudio = data.tracks.audio.map((e, index) => (`<option value="${e.id}" ${!index ? 'selected' : ''}>${e.language} - ${e.codec_name}</option>`));
@@ -109,7 +109,7 @@
               timeout: 10000,       // timeout in ms, after which we abort; 0 means never
               maxAttempts: 50,   // the maximum number of requests before we fail
               baseDelay: 0,  // the base delay in ms between retries
-              backoffFactor:0, // the multiplicative backoff factor between retries
+              backoffFactor: 0, // the multiplicative backoff factor between retries
               fuzzFactor: 0,  // the fuzz factor to apply to each retry delay
             }
           }

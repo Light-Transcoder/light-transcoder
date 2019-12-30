@@ -2,21 +2,14 @@ import { getTimeString } from '../../utils';
 
 export default class Dash {
 
-    constructor({
-        chunkDuration = 1,
-        duration = 0,
-    }) {
-        this._duration = duration;
-        this._chunkDuration = chunkDuration;
+    constructor(config) {
+        this._config = config;
+        //this._chunkDuration = chunkDuration;
     }
 
     // Generate a valid Dash manifest based on data provided
+    // Codec compat: https://shaka-player-demo.appspot.com/support.html
     getManifest() {
-const streams = [
-
-
-]
- // Codec compat : https://shaka-player-demo.appspot.com/support.html
         return {
             headers: [['content-type', 'text/html; charset=utf-8']],
             content: [
@@ -27,22 +20,30 @@ const streams = [
                 '    xsi:schemaLocation="urn:mpeg:DASH:schema:MPD:2011 http://standards.iso.org/ittf/PubliclyAvailableStandards/MPEG-DASH_schema_files/DASH-MPD.xsd"',
                 '    profiles="urn:mpeg:dash:profile:isoff-live:2011"',
                 '    type="static"',
-                `    mediaPresentationDuration="${getTimeString(this._duration)}"`,
-                `    minBufferTime="${getTimeString(this._chunkDuration)}">`,
-                `    <Period start="${getTimeString(0)}" duration="${getTimeString(this._duration)}">`,
-                '        <AdaptationSet contentType="video" segmentAlignment="true" bitstreamSwitching="true" lang="und">',
-                '            <Representation id="0" mimeType="video/mp4" codecs="avc1.640028" width="1920" height="1080" frameRate="30000/1001">',
-                `                <SegmentTemplate duration="${this._chunkDuration}" timescale="1" initialization="$RepresentationID$/initial.mp4" media="$RepresentationID$/$Number$.m4s" startNumber="0">`,
-                '                </SegmentTemplate>',
-                '            </Representation>',
-                '        </AdaptationSet>',
-                '        <AdaptationSet contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="eng">',
-                '            <Representation id="1" mimeType="audio/mp4" codecs="mp4a.40.2"  audioSamplingRate="48000">',
-                '                <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="2" />',
-                `                <SegmentTemplate duration="${this._chunkDuration}" timescale="1" initialization="$RepresentationID$/initial.mp4" media="$RepresentationID$/$Number$.m4s" startNumber="0">`,
-                '                </SegmentTemplate>',
-                '            </Representation>',
-                '        </AdaptationSet>',
+                `    mediaPresentationDuration="${getTimeString(this._config.duration)}"`,
+                `    minBufferTime="${getTimeString(this._config.chunkDuration)}">`,
+                `    <Period start="${getTimeString(0)}" duration="${getTimeString(this._config.duration)}">`,
+                ...this._config.streams.map((stream, idx) => {
+                    if (stream.type === 'video')
+                        return [
+                            `        <AdaptationSet contentType="video" segmentAlignment="true" lang="${stream.language}">`,
+                            `            <Representation id="${idx}" mimeType="video/${stream.codec.chunkFormat}" codecs="${stream.codec.name}" width="${stream.resolution.width}" height="${stream.resolution.height}" frameRate="${stream.framerate}">`,
+                            `                <SegmentTemplate duration="${this._config.chunkDuration}" timescale="1" initialization="$RepresentationID$/initial.${['mp4','webm'].includes(stream.codec.chunkFormat) ? stream.codec.chunkFormat : 'und'}" media="$RepresentationID$/$Number$.${['mp4','webm'].includes(stream.codec.chunkFormat) ? stream.codec.chunkFormat.replace('mp4', 'm4s') : 'und'}" startNumber="0">`,
+                            '                </SegmentTemplate>',
+                            '            </Representation>',
+                            '        </AdaptationSet>',
+                        ]
+                    else if (stream.type === 'audio')
+                        return [
+                            `        <AdaptationSet contentType="audio" segmentAlignment="true" lang="${stream.language}">`,
+                            `            <Representation id="${idx}" mimeType="audio/${stream.codec.chunkFormat}" codecs="${stream.codec.name}">`,
+                            `                <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="${stream.channels}" />`,
+                            `                <SegmentTemplate duration="${this._config.chunkDuration}" timescale="1" initialization="$RepresentationID$/initial.${['mp4','webm'].includes(stream.codec.chunkFormat) ? stream.codec.chunkFormat : 'und'}" media="$RepresentationID$/$Number$.${['mp4','webm'].includes(stream.codec.chunkFormat) ? stream.codec.chunkFormat.replace('mp4', 'm4s') : 'und'}" startNumber="0">`,
+                            '                </SegmentTemplate>',
+                            '            </Representation>',
+                            '        </AdaptationSet>',
+                        ]
+                }).reduce((acc, e) => ([...acc, ...e]), []),
                 '    </Period>',
                 '</MPD>',
             ].join('\n')

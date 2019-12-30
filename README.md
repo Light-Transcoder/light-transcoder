@@ -6,8 +6,8 @@ To test it:
 
 - `npm i` to install dependencies.
 - `npm start` to launch the server.
-- Go to `http://localhost:8585/demo/`.
-- Change the link if needed (By default it uses a `test.mkv` file in the `public` folder) The file isn't provided, you need to add it.
+- Go to `http://localhost:8585/web/` (`http://localhost:8585/web-legacy/` contains the old demo). Source code available here => https://github.com/Maxou44/light-transcoder-player
+- Change the link if needed.
 - Click on  `load file` to start media analysis.
 - Choose quality and tracks
 - Click on `Play!`.
@@ -17,11 +17,9 @@ Note: Direct stream only works if codecs can be played in your browser
 # To Do
 - Improve this Readme (WiP)
 - Document the API
-- Support Dash stream (WiP)
 - Support Long Polling stream
 - Support Download
 - Support "Optimize"
-- Improve the ChunkStore
 - Extract ffmpeg status (speed / informations)
 - Seek support (Ask not generated chunk should move the transcoder)
 - Detect input codec and bind the correct decoder
