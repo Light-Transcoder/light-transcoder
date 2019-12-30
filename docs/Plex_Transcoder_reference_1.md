@@ -1,4 +1,4 @@
-## File "The.LEGO.Ninjago.Movie.2017.MULTI.1080p.BluRay.x264-VENUE-WwW.Zone-Telechargement.Ws.mkv"
+## File "The.LEGO.Ninjago.Movie.2017.MULTI.1080p.BluRay.x264-VENUE.mkv"
 
 ### Start from begining of the file
 ```Plex Transcoder -codec:0 h264 -codec:1 ac3 -ss 0 -noaccurate_seek -analyzeduration 20000000 -probesize 20000000 -i file.mkv -filter_complex "[0:1] aresample=async=1:ocl='stereo':osr=48000[0]" -map 0:0 -codec:0 copy -map [0] -metadata:s:1 language=fre -codec:1 aac_mf -b:1 256k -f dash -seg_duration 5 -init_seg_name init-stream$RepresentationID$.m4s -media_seg_name chunk-stream$RepresentationID$-$Number%05d$.m4s -skip_to_segment 1 -time_delta 0.0625 -manifest_name http://manifest -avoid_negative_ts disabled -map_metadata -1 -map_chapters -1 dash -start_at_zero -copyts -vsync cfr -y -nostats -loglevel quiet -loglevel_plex error -progressurl http://progress``` 
