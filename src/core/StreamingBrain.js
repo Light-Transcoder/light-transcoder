@@ -1,5 +1,5 @@
 import MediaAnalyzer from './analyze/MediaAnalyzer';
-import { compareVideoCodecArray, compareAudioCodecArray, getFramerate, getBitrate, getLanguage } from './analyze/CompareFunctions';
+import { getFramerate, getLanguage, getDuration, getVideoTracks, getAudioTracks, canDirectPlay, canDirectStreamVideo, canDirectStreamAudio } from './analyze/CompareFunctions';
 
 export default class StreamingBrain {
 
@@ -45,91 +45,134 @@ export default class StreamingBrain {
         }
     }
 
-    async takeDecision(profile, videoStreams, audioStreams) {
-        const videoStreamsMeta = this._meta.meta.streams.filter(e => (e.codec_type === 'video'));
-        const audioStreamsMeta = this._meta.meta.streams.filter(e => (e.codec_type === 'audio'));
+    async takeDecision(compatibilityMap, profile, videoStreams, audioStreams) {
         await this.analyse();
-        return {
-            protocol: 'DASH',
-            duration: this._meta.global.duration,
-            chunkDuration: profile.chunkDuration,
-            startAt: 0,
-            streams: [
-                ...videoStreams.map((id) => ({
-                    id,
-                    type: 'video',
-                    path: this._input,
-                    language: getLanguage(videoStreamsMeta[id]),
-                    codec: {
-                        encoder: (profile.videoBitrate - 50 < getBitrate(videoStreamsMeta[id]) || profile.resized || !compareVideoCodecArray(videoStreamsMeta[id], ['x264', 'av1', 'vp8', 'vp9'])) ? 'libx264' : 'copy', // FFmpeg encoder
-                        decoder: false, // FFmpeg decoder
-                        chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-                        name: 'avc1.640028', // RFC6381 value (For dash manifest)
-                        options: {
-                            x264subme: profile.x264subme,
-                            x264crf: profile.x264crf,
-                            x264preset: profile.x264preset,
+        const videoStreamsMeta = getVideoTracks(this._meta.meta);
+        const audioStreamsMeta = getAudioTracks(this._meta.meta);
+        const duration = getDuration(this._meta.meta);
+
+        const downloadMap = compatibilityMap.find((e) => (e.type === 'DOWNLOAD'));
+        const dashMap = compatibilityMap.find((e) => (e.type === 'DASH'));
+        const hlsMap = compatibilityMap.find((e) => (e.type === 'HLS'));
+
+        console.log('DIRECT PLAY STATUS', canDirectPlay(this._meta.meta, downloadMap)[1])
+
+        // DOWNLOAD
+        if (downloadMap && canDirectPlay(this._meta.meta, downloadMap)[0]) {
+            return {
+                protocol: 'DOWNLOAD',
+                duration,
+                chunkDuration: 0,
+                startAt: 0,
+                streams: [],
+            }
+        }
+
+        // DASH
+        if (dashMap) {
+            return {
+                protocol: 'DASH',
+                duration,
+                chunkDuration: profile.chunkDuration,
+                startAt: 0,
+                streams: [
+                    ...videoStreams.map((id) => {
+                        console.log('CAN STREAM VIDEO TRACK', id, canDirectStreamVideo(videoStreamsMeta[id], dashMap, profile.videoBitrate, profile.resized)[1])
+                        return {
+                            id,
+                            type: 'video',
+                            path: this._input,
+                            language: getLanguage(videoStreamsMeta[id]),
+                            codec: {
+                                encoder: canDirectStreamVideo(videoStreamsMeta[id], dashMap, profile.videoBitrate, profile.resized)[0] ? 'copy' : 'libx264',
+                                decoder: false, // FFmpeg decoder (not supported yet)
+                                chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
+                                name: 'avc1.640028', // RFC6381 value (For dash manifest)
+                                options: {
+                                    x264subme: profile.x264subme,
+                                    x264crf: profile.x264crf,
+                                    x264preset: profile.x264preset,
+                                },
+                            },
+                            bitrate: profile.videoBitrate,
+                            framerate: getFramerate(videoStreamsMeta[id]),
+                            resolution: {
+                                width: profile.width,
+                                height: profile.height,
+                            },
+                            meta: videoStreamsMeta[id],
+                        }
+                    }),
+                    ...audioStreams.map((id) => {
+                        console.log('CAN STREAM AUDIO TRACK', id, canDirectStreamAudio(audioStreamsMeta[id], dashMap, profile.audioBitrate)[1])
+                        return {
+                            id,
+                            type: 'audio',
+                            path: this._input,
+                            language: getLanguage(audioStreamsMeta[id]),
+                            codec: {
+                                encoder: canDirectStreamAudio(audioStreamsMeta[id], dashMap, profile.audioBitrate)[0] ? 'copy' : 'aac',
+                                decoder: false, // FFmpeg decoder
+                                chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
+                                name: 'mp4a.40.2', // RFC6381 value (For dash manifest)
+                            },
+                            bitrate: profile.audioBitrate,
+                            meta: audioStreamsMeta[id],
+                        }
+                    })
+                ]
+            }
+        }
+
+        // HLS
+        if (hlsMap) {
+            return {
+                protocol: 'HLS',
+                duration,
+                chunkDuration: profile.chunkDuration,
+                startAt: 0,
+                streams: [
+                    ...videoStreams.map((id) => ({
+                        id,
+                        type: 'video',
+                        path: this._input,
+                        language: getLanguage(videoStreamsMeta[id]),
+                        codec: {
+                            encoder: canDirectStreamVideo(videoStreamsMeta[id], hlsMap, profile.videoBitrate, profile.resized)[0] ? 'copy' : 'libx264',
+                            decoder: false, // FFmpeg decoder (not supported yet)
+                            options: {
+                                x264subme: profile.x264subme,
+                                x264crf: profile.x264crf,
+                                x264preset: profile.x264preset,
+                            },
                         },
-                    },
-                    bitrate: profile.videoBitrate,
-                    framerate: getFramerate(videoStreamsMeta[id]),
-                    resolution: {
-                        width: profile.width,
-                        height: profile.height,
-                    },
-                    meta: videoStreamsMeta[id],
-                })),
-                ...audioStreams.map((id) => ({
-                    id,
-                    type: 'audio',
-                    path: this._input,
-                    language: getLanguage(audioStreamsMeta[id]),
-                    codec: {
-                        encoder: (profile.audioBitrate - 50  < getBitrate(audioStreamsMeta[id]) || !compareAudioCodecArray(audioStreamsMeta[id], ['aac', /*'mp3', 'ogg', 'opus'*/])) ? 'aac' : 'copy', // FFmpeg encoder
-                        decoder: false, // FFmpeg decoder
-                        chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-                        name: 'mp4a.40.2', // RFC6381 value (For dash manifest)
-                    },
-                    channels: 2,
-                    bitrate: profile.audioBitrate,
-                    meta: audioStreamsMeta[id],
-                }))
-            ]
+                        bitrate: profile.videoBitrate,
+                        framerate: getFramerate(videoStreamsMeta[id]),
+                        resolution: {
+                            width: profile.width,
+                            height: profile.height,
+                        },
+                        meta: videoStreamsMeta[id],
+                    })),
+                    ...audioStreams.map((id) => ({
+                        id,
+                        type: 'audio',
+                        path: this._input,
+                        language: getLanguage(audioStreamsMeta[id]),
+                        codec: {
+                            encoder: canDirectStreamAudio(audioStreamsMeta[id], hlsMap, profile.audioBitrate)[0] ? 'copy' : 'aac',
+                            decoder: false, // FFmpeg decoder
+                        },
+                        bitrate: profile.audioBitrate,
+                        meta: audioStreamsMeta[id],
+                    }))
+                ]
+            }
         }
 
+        console.error('Failed to stream file, it\'s sad!')
+        return false;
     }
-
-
-    /*
-        async takeDecision(compatibilityMap = [{
-            "type": "HLS",
-            "video": [
-                { "codec": "h264" },
-                { "codec": "webm" },
-            ],
-            "audio": [
-                { "codec": "aac" },
-                { "codec": "ogg" },
-            ]
-        }, {
-            "type": "DOWNLOAD",
-            "format": [
-                { "container": "mp4" },
-                { "container": "webm" },
-            ],
-            "video": [
-                { "codec": "h264" },
-                { "codec": "webm" },
-            ],
-            "audio": [
-                { "codec": "aac" },
-                { "codec": "ogg" },
-            ]
-        }]) {
-            const protocolOrder = ['DOWNLOAD', 'HLS'];
-        }
-     
-       */
 
     // Force to fit a resolution inside an other other (and keep the same ratio)
     _calcOutputResolution(width, height, maxWidth, maxHeight) {

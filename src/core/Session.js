@@ -2,13 +2,12 @@ import uuid from 'uuid/v4';
 import Transcoder from './ffmpeg/Transcoder';
 import StreamingBrain from './StreamingBrain';
 import MediaAnalyzer from './analyze/MediaAnalyzer';
-import config from '../config';
 import DashManifest from './manifest/Dash'
 import HlsManifest from './manifest/Hls'
 
 export default class Session {
 
-    constructor(protocol = 'HLS', input = '', videoStream = '0', audioStream = '0', profileId = 0) {
+    constructor(input = '', videoStream = '0', audioStream = '0', profileId = 0, compatibilityMap = []) {
         this._uuid = uuid();
         this._dir = `./tmp/session-${this._uuid}/`
         this._streamingBrain = new StreamingBrain(input);
@@ -17,27 +16,26 @@ export default class Session {
         this._profileId = profileId;
         this._videoStream = videoStream;
         this._audioStream = audioStream;
-        this._protocol = protocol;
+        this._compatibilityMap = compatibilityMap;
         this._transcoder = false;
     }
 
     async getConfig() {
         const profile = (await this._streamingBrain.getProfile(this._profileId));
-        const config = (await this._streamingBrain.takeDecision(profile, [this._videoStream], [this._audioStream]));
+        const config = (await this._streamingBrain.takeDecision(this._compatibilityMap, profile, [this._videoStream], [this._audioStream]));
         return config;
     }
 
-
     async initTranscoder() {
         const config = await this.getConfig();
-
-console.log('CONFIG', config)
-
-        this._transcoder = new Transcoder({
-            config,
-            dir: this._dir,
-        });
-        return true;
+        if (config.protocol === 'HLS' || config.protocol === 'DASH') {
+            this._transcoder = new Transcoder({
+                config,
+                dir: this._dir,
+            });
+            return true;
+        }
+        return false;
     }
 
     getUuid() {
@@ -66,29 +64,42 @@ console.log('CONFIG', config)
 
     async routeSendDashManifest(_, res) {
         const config = await this.getConfig();
-        const manifest = (new DashManifest(config)).getManifest();
-        manifest.headers.forEach(e => (res.set(e[0], e[1])))
-        return res.send(manifest.content);
+        if (config.protocol === 'DASH') {
+            const manifest = (new DashManifest(config)).getManifest();
+            manifest.headers.forEach(e => (res.set(e[0], e[1])))
+            return res.send(manifest.content);
+        }
+        return res.status(404).send('It\'s not a DASH session');
     }
 
     async routeSendHLSMaster(_, res) {
         const config = await this.getConfig();
-        const manifest = (new HlsManifest(config)).getMaster();
-        manifest.headers.forEach(e => (res.set(e[0], e[1])))
-        return res.send(manifest.content);
+        if (config.protocol === 'HLS') {
+            const manifest = (new HlsManifest(config)).getMaster();
+            manifest.headers.forEach(e => (res.set(e[0], e[1])))
+            return res.send(manifest.content);
+        }
+        return res.status(404).send('It\'s not a HLS session');
     }
 
     async routeSendHLSStream(_, res) {
         const config = await this.getConfig();
-        const manifest = (new HlsManifest(config)).getStream();
-        manifest.headers.forEach(e => (res.set(e[0], e[1])))
-        return res.send(manifest.content);
+        if (config.protocol === 'HLS') {
+            const manifest = (new HlsManifest(config)).getStream();
+            manifest.headers.forEach(e => (res.set(e[0], e[1])))
+            return res.send(manifest.content);
+        }
+        return res.status(404).send('It\'s not a HLS session');
     }
 
     async start() {
-        if (!this._transcoder)
-            await this.initTranscoder();
-        return this._transcoder.start();
+        const config = await this.getConfig();
+        if (config.protocol === 'HLS' || config.protocol === 'DASH') {
+            if (!this._transcoder)
+                await this.initTranscoder();
+            return this._transcoder.start();
+        }
+        return false;
     }
 
     /*stop() {

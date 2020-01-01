@@ -78,6 +78,7 @@ export default class Transcoder {
                 }
                 // Transcoded stream
                 else {
+                    // Todo: compare height and width, don't rescale if not needed
                     const streamFilters = [
                         `scale=${stream.resolution.width}:${stream.resolution.height}:force_original_aspect_ratio=disable`,
                         `setdar=${stream.resolution.width}/${stream.resolution.height}`,
@@ -199,8 +200,8 @@ export default class Transcoder {
                 'dash',
                 '-seg_duration',
                 this._config.chunkDuration,
-                '-dash_segment_type',
-                'mp4',
+                //'-dash_segment_type',
+                //'mp4',
                 'manifest.mpd',
             );
         }

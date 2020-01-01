@@ -34,7 +34,6 @@ export default class MediaAnalyzer {
             return false;
         _CACHE[this._input] = meta;
         // Reminder: don't set the parsed meta in cache, this value can change in the future
-        console.log(parseMeta(meta).meta.streams);
         return parseMeta(meta);
     }
 

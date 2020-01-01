@@ -1,4 +1,4 @@
-import { getTimeString } from '../../utils';
+export const getTimeString = (time = 0) => (`PT${Math.floor(time / 3600)}H${Math.floor(time % 3600 / 60)}M${Math.round(time % 60)}S`);
 
 export default class Dash {
 
