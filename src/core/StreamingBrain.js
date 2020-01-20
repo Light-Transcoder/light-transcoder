@@ -87,7 +87,7 @@ export default class StreamingBrain {
                                 encoder: canDirectStreamVideo(videoStreamsMeta[id], dashMap, profile.videoBitrate, profile.resized)[0] ? 'copy' : 'libx264',
                                 decoder: false, // FFmpeg decoder (not supported yet)
                                 chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-                                name: 'avc1.640028', // RFC6381 value (For dash manifest)
+                                name: 'avc1.42c00d', // RFC6381 value (For dash manifest)
                                 options: {
                                     x264subme: profile.x264subme,
                                     x264crf: profile.x264crf,

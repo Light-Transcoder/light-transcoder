@@ -30,11 +30,11 @@ export const getDuration = (meta) => {
     - "unknown" (if not detected)
 */
 export const getContainer = (meta) => {
-    if (meta.format.format_name === 'mp4')
-        return 'mp4';
-    if (meta.format.format_name.includes('matroska'))
-        return 'mkv';
-    if (meta.format.format_name.includes('mp4')) // Maybe it create conflicts
+    /*if (meta.format.format_name.includes('matroska'))
+        return 'mkv';*/ // Conflicts with webm
+    /*if (meta.format.format_name.includes('mp4')) // It creates conflicts
+        return 'mp4';*/
+    if (meta.format.format_name === 'mp4' || meta.format.tags && meta.format.tags.compatible_brands === 'isomiso2avc1mp41')
         return 'mp4';
     if (meta.format.format_name.includes('avi'))
         return 'avi';
@@ -48,12 +48,19 @@ export const compareContainer = (meta, container) => (container === '*' || getCo
 /*
     Supported video codec detection
     - "x264"
+    - "vp8"
     - "xvid"
     - "unknown" (if not detected)
 */
 export const getVideoCodec = (metaTrack) => {
     if (metaTrack.codec_name === 'h264')
         return 'x264';
+    if (metaTrack.codec_name === 'vp8')
+        return 'vp8';
+    if (metaTrack.codec_name === 'vp9')
+        return 'vp9';
+    if (metaTrack.codec_name === 'av1')
+        return 'av1';
     if (metaTrack.codec_name === 'mpeg4' && metaTrack.codec_tag_string === 'XVID')
         return 'xvid';
 
@@ -69,6 +76,9 @@ export const compareVideoCodecArray = (metaTrack, codecsArray) => (codecsArray.s
     - "opus"
     - "aac"
     - "mp3"
+    - "ac3"
+    - "eac3"
+    - "vorbis"
     - "unknown" (if not detected)
 */
 export const getAudioCodec = (metaTrack) => {
@@ -82,6 +92,8 @@ export const getAudioCodec = (metaTrack) => {
         return 'ac3';
     if (metaTrack.codec_name === 'eac3')
         return 'eac3';
+    if (metaTrack.codec_name === 'vorbis')
+        return 'vorbis';
 
     // Unknown codec
     console.warn('WARNING: Unknown audio codec', metaTrack);
