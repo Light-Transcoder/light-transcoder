@@ -1,34 +1,11 @@
-import uuid from 'uuid/v4';
 import MediaAnalyzer from './analyze/MediaAnalyzer';
-
+import { getFramerate, getLanguage, getDuration, getVideoTracks, getAudioTracks, canDirectPlay, canDirectStreamVideo, canDirectStreamAudio, directVideoStreamDelay } from './analyze/CompareFunctions';
 
 export default class StreamingBrain {
 
     constructor(input = '') {
-        this._uuid = uuid();
         this._input = input;
         this._meta = false;
-        this._analyzer = new MediaAnalyzer(input);
-
-        /*
-        this._inputVideoStream = '0:v:0';
-        this._inputAudioStream = '0:a:0';
-        this._format = 'DASH';
-        this._chunkDuration = 5;
-        this._videoDirectStream = false // If true we use "copy"
-        this._audioDirectStream = false // If true we use "copy"
-        this._analyseDuration = 20000000;
-        this._outputFPS = 23.975999999999999;
-        this._useAdaptativePreset = true;
-        this._startAt = parseInt(0, 10); // In seconds
-        this._duration = (meta && meta.global.duration) ? meta.global.duration : 60 * 60 * 2; // Fallback to 2h if not available
-        this._debug = true;
-        this._profile = profileId;*/
-
-        this.allowedVideoCodecs = ['H264', 'HEVC', 'COPY'];
-        this.allowedAudioCodecs = ['AAC', 'OGG', 'COPY'];
-        this.allowedSubtitlesCodecs = ['EXTRACT', 'BURN'] // WTF ?
-        this.allowedStreamModes = ['HLS', 'DASH', 'LP', 'DOWNLOAD'];
     }
 
     async getMeta() {
@@ -37,7 +14,7 @@ export default class StreamingBrain {
 
     async analyse() {
         if (!this._meta)
-            this._meta = await this._analyzer.analyze();
+            this._meta = await (new MediaAnalyzer(this._input)).analyze();
         return this._meta;
     }
 
@@ -48,15 +25,15 @@ export default class StreamingBrain {
             return {};
 
         const videoStreams = this._meta.meta.streams.filter(e => (e.codec_type === 'video')).map((e, i) => ({
-            id: `0:v:${i}`,
-            language: e.tags && e.tags.LANGUAGE || 'und',
+            id: i,
+            language: getLanguage(e),
             codec: e.codec_name || 'unknown',
             codec_name: e.codec_long_name || 'Unknown',
         }));
 
         const audioStreams = this._meta.meta.streams.filter(e => (e.codec_type === 'audio')).map((e, i) => ({
-            id: `0:a:${i}`,
-            language: e.tags && e.tags.LANGUAGE || 'und',
+            id: i,
+            language: getLanguage(e),
             codec: e.codec_name || 'unknown',
             codec_name: e.codec_long_name || 'Unknown',
         }));
@@ -68,153 +45,150 @@ export default class StreamingBrain {
         }
     }
 
-    async takeDecision() {
+    async takeDecision(compatibilityMap, profile, videoStreams, audioStreams) {
+        await this.analyse();
+        const videoStreamsMeta = getVideoTracks(this._meta.meta);
+        const audioStreamsMeta = getAudioTracks(this._meta.meta);
+        const duration = getDuration(this._meta.meta);
 
+        const downloadMap = compatibilityMap.find((e) => (e.type === 'DOWNLOAD'));
+        const dashMap = compatibilityMap.find((e) => (e.type === 'DASH'));
+        const hlsMap = compatibilityMap.find((e) => (e.type === 'HLS'));
 
-        return [
-            {
-                type: 'video',
-                codec: {
-                    type: 'x264',
-                    options: {
-                        x264subme: 0,
-                        x264crf: 22,
-                        x264preset: 'fast',
-                    },
-                },
-                bitrate: 512,
-                framerate: '30000/1001',
-                resolution: {
-                    width: 1920,
-                    height: 1080,
-                },
-                meta: {},
-            },
-            {
-                type: 'audio',
-                codec: {
-                    type: 'opus',
-                },
-                channels: 2,
-                bitrate: 128,
-                meta: {}
+        //console.log('DIRECT PLAY STATUS', canDirectPlay(this._meta.meta, downloadMap)[1])
+
+        // DOWNLOAD
+        if (downloadMap && canDirectPlay(this._meta.meta, downloadMap)[0]) {
+            return {
+                protocol: 'DOWNLOAD',
+                duration,
+                chunkDuration: 0,
+                startAt: 0,
+                streams: [],
             }
-        ]
-
-    }
-
-
-    /*
-        async takeDecision(compatibilityMap = [{
-            "type": "HLS",
-            "video": [
-                { "codec": "h264" },
-                { "codec": "webm" },
-            ],
-            "audio": [
-                { "codec": "aac" },
-                { "codec": "ogg" },
-            ]
-        }, {
-            "type": "DOWNLOAD",
-            "format": [
-                { "container": "mp4" },
-                { "container": "webm" },
-            ],
-            "video": [
-                { "codec": "h264" },
-                { "codec": "webm" },
-            ],
-            "audio": [
-                { "codec": "aac" },
-                { "codec": "ogg" },
-            ]
-        }]) {
-            const protocolOrder = ['DOWNLOAD', 'HLS'];
-     
-     
-     
-     
-     
-     
         }
-     
-       */
 
-    /*
-        exp() {
-     
-     
-     
-     
-            const exp = {
-                format: 'HLS',
-                //quickSwitch: false,
-                duration: 300,
-                chunkDuration: 5,
-                videoStream: [
-                    {
-                        name: 'track 1',
-                        index: '0:a:0',
-                        codec: 'copy/fun/aac',
-                        bitrate: 568,
-                        autoQuality: false,
-                    }
-                ],
-                audio: [
-                    {
-                        name: 'track 1',
-                        index: '0:a:0',
-                        codec: 'copy/fun/aac',
-                        bitrate: 568,
-                        height: 1080,
-                        width: 1920,
-                        x264preset: 'slower',
-                        x264subme: 2,
-                        x264crf: 22,
-                    }
-                ],
-                subtitle: [
-                    name : 'track 1',
-                    index: '0:a:0',
-                    codec: 'burn/extract',
-                    bitrate: 568
+        // DASH
+        if (dashMap) {
+            return {
+                protocol: 'DASH',
+                duration,
+                chunkDuration: profile.chunkDuration,
+                startAt: 0,
+                streams: [
+                    ...[videoStreams[0]].map((id) => {
+                        const canDirectStream = canDirectStreamVideo(videoStreamsMeta[id], dashMap, profile.videoBitrate, profile.resized)
+                        //console.log('CAN DIRECT STREAM VIDEO TRACK', id, canDirectStream[1]);
+                        //console.log(videoStreamsMeta[id]);
+                        return {
+                            id,
+                            type: 'video',
+                            path: this._input,
+                            language: getLanguage(videoStreamsMeta[id]),
+                            codec: {
+                                encoder: canDirectStream[0] ? 'copy' : 'libx264',
+                                decoder: false, // FFmpeg decoder (not supported yet)
+                                chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
+                                name: 'avc1.42c00d', // 'avc1.640028', // RFC6381 value (For dash manifest)
+                                options: {
+                                    x264subme: profile.x264subme,
+                                    x264crf: profile.x264crf,
+                                    x264preset: profile.x264preset,
+                                },
+                            },
+                            bitrate: profile.videoBitrate,
+                            framerate: getFramerate(videoStreamsMeta[id]),
+                            resolution: {
+                                width: profile.width,
+                                height: profile.height,
+                            },
+                            meta: videoStreamsMeta[id],
+                        }
+                    }),
+                    ...audioStreams.map((id) => {
+                        const canDirectStream = canDirectStreamAudio(audioStreamsMeta[id], dashMap, profile.audioBitrate)
+                        const delay = directVideoStreamDelay(videoStreamsMeta, dashMap, profile.videoBitrate, profile.resized);
+                        //console.log('CAN DIRECT STREAM AUDIO TRACK', id, canDirectStream[1], delay)
+                        //console.log(audioStreamsMeta[id])
+                        return {
+                            id,
+                            type: 'audio',
+                            path: this._input,
+                            language: getLanguage(audioStreamsMeta[id]),
+                            codec: {
+                                encoder: canDirectStream[0] && delay === 0 ? 'copy' : 'aac',
+                                decoder: false, // FFmpeg decoder
+                                chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
+                                name: 'mp4a.40.2', // RFC6381 value (For dash manifest)
+                            },
+                            bitrate: profile.audioBitrate,
+                            delay,
+                            channels: 2,
+                            sample: audioStreamsMeta[id].sample_rate || 0,
+                            meta: audioStreamsMeta[id],
+                        }
+                    })
                 ]
-     
             }
-     
-     
         }
-    */
 
-    getQualities() {
-        return [
-            { audioBitrate: 135, videoBitrate: 50, x264subme: 2, x264crf: 22, x264preset: 'slower', maxHeight: 160, maxWidth: 285, name: '160p (256k)' },
-            { audioBitrate: 123, videoBitrate: 180, x264subme: 2, x264crf: 23, x264preset: 'slower', maxHeight: 240, maxWidth: 430, name: '240p (512k)' },
-            { audioBitrate: 153, videoBitrate: 530, x264subme: 2, x264crf: 21, x264preset: 'slow', maxHeight: 350, maxWidth: 625, name: '350p (768k)' },
-            { audioBitrate: 159, videoBitrate: 1260, x264subme: 2, x264crf: 21, x264preset: 'slow', maxHeight: 480, maxWidth: 855, name: '480p (1.5M)' }, // Maybe add a 576 profile ?
-            { audioBitrate: 204, videoBitrate: 1544, x264subme: 2, x264crf: 19, x264preset: 'medium', maxHeight: 720, maxWidth: 1280, name: '720p (2M)' },
-            { audioBitrate: 117, videoBitrate: 2698, x264subme: 0, x264crf: 23, x264preset: 'medium', maxHeight: 720, maxWidth: 1280, name: '720p (3M)' },
-            { audioBitrate: 148, videoBitrate: 3623, x264subme: 0, x264crf: 21, x264preset: 'fast', maxHeight: 720, maxWidth: 1280, name: '720p (4M)' },
-            { audioBitrate: 136, videoBitrate: 7396, x264subme: 0, x264crf: 22, x264preset: 'fast', maxHeight: 1080, maxWidth: 1920, name: '1080p (8M)' },
-            { audioBitrate: 164, videoBitrate: 9261, x264subme: 0, x264crf: 21, x264preset: 'faster', maxHeight: 1080, maxWidth: 1920, name: '1080p (10M)' },
-            { audioBitrate: 191, videoBitrate: 10947, x264subme: 0, x264crf: 19, x264preset: 'faster', maxHeight: 1080, maxWidth: 1920, name: '1080p (12M)' },
-            { audioBitrate: 256, videoBitrate: 14256, x264subme: 0, x264crf: 19, x264preset: 'veryfast', maxHeight: 1080, maxWidth: 1920, name: '1080p (15M)' },
-            { audioBitrate: 512, videoBitrate: 18320, x264subme: 0, x264crf: 18, x264preset: 'veryfast', maxHeight: 1080, maxWidth: 1920, name: '1080p (20M)' },
-            { audioBitrate: 1024, videoBitrate: 23320, x264subme: 0, x264crf: 17, x264preset: 'superfast', maxHeight: 1080, maxWidth: 1920, name: '1080p (25M)' },
-            { audioBitrate: 1024, videoBitrate: 23320, x264subme: 0, x264crf: 17, x264preset: 'superfast', maxHeight: 1080, maxWidth: 1920, name: '1080p (30M)' },
-            { audioBitrate: 2048, videoBitrate: 35320, x264subme: 0, x264crf: 17, x264preset: 'superfast', maxHeight: 1080, maxWidth: 1920, name: '1080p (40M)' },
-            { audioBitrate: 2048, videoBitrate: 455320, x264subme: 0, x264crf: 16, x264preset: 'superfast', maxHeight: 1080, maxWidth: 1920, name: '1080p (50M)' }, // Add a 2K profile ?
-            { audioBitrate: 2048, videoBitrate: 455320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', maxHeight: 2160, maxWidth: 3840, name: '4K (50M)' },
-            { audioBitrate: 2048, videoBitrate: 555320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', maxHeight: 2160, maxWidth: 3840, name: '4K (60M)' },
-            { audioBitrate: 4096, videoBitrate: 655320, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', maxHeight: 2160, maxWidth: 3840, name: '4K (70M)' },
-            { audioBitrate: 4096, videoBitrate: 1310640, x264subme: 0, x264crf: 24, x264preset: 'ultrafast', maxHeight: 4320, maxWidth: 7680, name: '8K (140M)' },
-        ]
+        // HLS
+        if (hlsMap) {
+            return {
+                protocol: 'HLS',
+                duration,
+                chunkDuration: profile.chunkDuration,
+                startAt: 0,
+                streams: [
+                    ...videoStreams.map((id) => ({
+                        id,
+                        type: 'video',
+                        path: this._input,
+                        language: getLanguage(videoStreamsMeta[id]),
+                        codec: {
+                            encoder: canDirectStreamVideo(videoStreamsMeta[id], hlsMap, profile.videoBitrate, profile.resized)[0] ? 'copy' : 'libx264',
+                            decoder: false, // FFmpeg decoder (not supported yet)
+                            options: {
+                                x264subme: profile.x264subme,
+                                x264crf: profile.x264crf,
+                                x264preset: profile.x264preset,
+                            },
+                        },
+                        bitrate: profile.videoBitrate,
+                        framerate: getFramerate(videoStreamsMeta[id]),
+                        resolution: {
+                            width: profile.width,
+                            height: profile.height,
+                        },
+                        meta: videoStreamsMeta[id],
+                    })),
+                    ...audioStreams.map((id) => {
+                        const canDirectStream = canDirectStreamAudio(audioStreamsMeta[id], hlsMap, profile.audioBitrate)
+                        const delay = directVideoStreamDelay(videoStreamsMeta, hlsMap, profile.videoBitrate, profile.resized);
+                        return {
+                            id,
+                            type: 'audio',
+                            path: this._input,
+                            language: getLanguage(audioStreamsMeta[id]),
+                            codec: {
+                                encoder: canDirectStream[0] && delay === 0 ? 'copy' : 'aac',
+                                decoder: false, // FFmpeg decoder
+                            },
+                            delay,
+                            channels: 2,
+                            sample: audioStreamsMeta[id].sample_rate || 0,
+                            meta: audioStreamsMeta[id],
+                        }
+                    })
+                ]
+            }
+        }
+
+        console.error('Failed to stream file, it\'s sad!')
+        return false;
     }
 
-    //1920 * 1080 + 1920 * 1080 => 1920 * 1080
-    //1280 * 720 + 1920 * 1080 => 1280 * 720
-
+    // Force to fit a resolution inside an other other (and keep the same ratio)
     _calcOutputResolution(width, height, maxWidth, maxHeight) {
         // Calc ratio
         const ratio = width / height;
@@ -243,23 +217,63 @@ export default class StreamingBrain {
         // Analyse the file if needed
         await this.analyse();
 
+        // List of qualities
+        const qualities = [
+            { height: 160, width: 285, bitrates: [250] },
+            { height: 240, width: 430, bitrates: [500] },
+            { height: 350, width: 625, bitrates: [750] },
+            { height: 480, width: 855, bitrates: [1250] },
+            { height: 576, width: 1024, bitrates: [1750] },
+            { height: 720, width: 1280, bitrates: [2000, 3000, 4000] },
+            { height: 1080, width: 1920, bitrates: [8000, 10000, 12000, 20000] },
+            { height: 1440, width: 2560, bitrates: [22000, 30000] },
+            { height: 2160, width: 3840, bitrates: [50000, 60000, 70000, 80000] },
+            { height: 4320, width: 7680, bitrates: [140000] },
+        ];
+
         // Get resolution
         const resolution = this._meta.global.resolution;
 
         // Filter to avoid higher resolution than original file
-        const qualitiesFiltered = this.getQualities().filter((e) => (e.maxWidth <= resolution.width && e.maxHeight <= resolution.height));
+        const filtered = qualities.filter((e) => (e.width <= resolution.width && e.height <= resolution.height)).map(e => ({ ...e, ...this._calcOutputResolution(resolution.width, resolution.height, e.width, e.height), original: false }));
 
-        // Remove qualities with higher bitrate (except the first one)
-        const qualities = qualitiesFiltered.filter((e, i) => (e.videoBitrate + e.audioBitrate <= this._meta.global.bitrate / 1024 || qualitiesFiltered.findIndex((q) => (q.maxWidth === e.maxWidth && q.maxHeight === e.maxHeight)) === i))
-
-        // Add a "Original" version with the same bitrate (It will be merged with the Direct stream in the future)
-        qualities.push({ audioBitrate: 512, videoBitrate: Math.round(this._meta.global.bitrate / 1024), x264subme: 0, x264crf: 18, x264preset: 'veryfast', maxHeight: resolution.height, maxWidth: resolution.width, name: `Original (${resolution.width}x${resolution.height}@${Math.round(this._meta.global.bitrate / 1024)}k)` })
-
-        // Beta feature / Test => Try to direct stream file
-        qualities.push({ directStreamAudio: true, directStreamVideo: true, audioBitrate: 512, videoBitrate: 18320, x264subme: 0, x264crf: 18, x264preset: 'veryfast', maxHeight: resolution.height, maxWidth: resolution.width, name: `Direct Stream (Beta)` })
+        // Add a "Original" version with the original bitrate
+        filtered.push({ height: resolution.height, width: resolution.width, bitrates: [Math.round(this._meta.global.bitrate / 1024)], original: true, resized: false })
 
         // Return the array of profiles with real output resolution and id
-        return qualities.map((e, i) => ({ ...e, id: i, resolution: this._calcOutputResolution(resolution.width, resolution.height, e.maxWidth, e.maxHeight) }));
+        const toOrder = filtered.reduce((acc, e) => ([...acc, ...e.bitrates.map((b, qualityIndex) => ({ ...e, bitrate: b, bitrates: undefined, qualityIndex }))]), []);
+
+        // Sort by height and bitrate
+        toOrder.sort((a, b) => ((a.height !== b.height) ? a.height - b.height : a.bitrate - b.bitrate));
+
+        // Return with index
+        return toOrder.map((e, i) => ({ ...e, id: i }))
     }
 
+    async getProfile(id = 0) {
+        // Get profiles
+        const profiles = await this.getProfiles();
+
+        // Error
+        if (!profiles[id])
+            return false;
+
+        // Select profile
+        const profile = profiles[id];
+
+        // x264 codec specific stuff
+        const x264subme = (profile.height <= 480) ? 2 : 0;
+        const x264crf = [24, 22, 20, 18][profile.qualityIndex] || 23;
+        const x264preset = ['slow', 'medium', 'fast', 'veryfast'][profile.qualityIndex] || 'fast';
+
+        // Adjust chunk duration
+        const chunkDuration = [6, 5, 4, 3][profile.qualityIndex] || 5;
+
+        // Calculate approximative bitrates
+        const audioBitrate = (10 * profile.bitrate / 100) < 64 ? 64 : (10 * profile.bitrate / 100) > 2048 ? 2048 : Math.round(10 * profile.bitrate / 100);
+        const videoBitrate = Math.round((profile.bitrate - audioBitrate) * 0.95);
+
+        // Return encoder settings
+        return { ...profile, x264subme, x264crf, x264preset, audioBitrate, videoBitrate, chunkDuration };
+    }
 }
