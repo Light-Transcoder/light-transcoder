@@ -2,19 +2,15 @@
 
 This project contains an API to allows the real-time transcode of media files.  
 
-To test it:
-
+## Try it
 - `npm i` to install dependencies.
 - `npm start` to launch the server.
-- Go to `http://localhost:8585/web/` (`http://localhost:8585/web-legacy/` contains the old demo). Source code available here => https://github.com/Maxou44/light-transcoder-player
+- Go to `http://localhost:8585/web/`. Source code available here => https://github.com/Maxou44/light-transcoder-player
 - Change the link if needed.
-- Click on  `load file` to start media analysis.
-- Choose quality and tracks
-- Click on `Play!`.
+- Press enter
+- Have fun!
 
-Note: Direct stream only works if codecs can be played in your browser
-
-# To Do
+## To Do
 - Improve this Readme (WiP)
 - Document the API
 - Support Long Polling stream
@@ -30,50 +26,3 @@ Note: Direct stream only works if codecs can be played in your browser
 - In the future, apps could send they codec map support and the StreamingBrain will choose the best protocol/codec to stream
 - Webm / VP8 / VP9 / HEVC profiles (AV1?)
 - Feat: Direct stream and ffmpeg speed limit
-
-## API Draft (NEED TO BE UPDATED)
-
-This part is not up to date, check the demo code for more information 
-
-**POST** `/media/analyze`
-```
-{
-    "url" : "http://file.mkv"
-}
-```
-
-**POST** `/session`
-```
-{
-    "url" : "http://file.mkv"
-    "profile" : 5 // profile id
-}
-```
---------
-```
-{
-    "session": {
-        "uuid": "2fc083ff-f264-42d5-8d53-a50e175f1769",
-        "stream": {
-            "type": "HLS",
-            "url": "http://localhost:8585/session/2fc083ff-f264-42d5-8d53-a50e175f1769/hls/master.m3u8"
-        }
-    }
-}
-```
-
-## DRAFT supported codec map
-
-```
-[{
-    "type": "HLS",
-    "video" : [
-        {"codec": "h264"},
-        {"codec": "webm"},
-    ],
-    "audio" : [
-        {"codec": "aac"},
-        {"codec": "ogg"},
-    ]
-}]
-```
