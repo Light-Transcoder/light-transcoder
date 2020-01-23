@@ -88,6 +88,6 @@ export default class FFmpegLogParser {
             this._onStats(data);
         }
 
-        console.log(data)
+        //console.log(data)
     }
 }

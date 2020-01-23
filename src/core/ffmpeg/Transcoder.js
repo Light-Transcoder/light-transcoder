@@ -57,6 +57,9 @@ export default class Transcoder {
         args.push('-ss', this._startAt, '-noaccurate_seek') // Personnal note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
         */
 
+        // 
+        args.push('-ss', '0', '-noaccurate_seek');
+
         // Bind inputs
         inputs.forEach(input => {
             args.push('-analyzeduration', 20000000, '-probesize', 20000000, '-i', input);
@@ -102,7 +105,8 @@ export default class Transcoder {
                 // Transcoded stream
                 else {
                     const streamFilters = [
-                        `aresample=async=1:ocl='stereo':osr=48000`
+                        ...(((stream.meta.channels || 0).channels !== stream.sample) ? [`aresample=async=1:ocl='stereo':osr=${stream.sample}`] : []),
+                        ...((stream.delay) ? [`atrim=${stream.delay}`, 'asetpts=PTS-STARTPTS'] : []),
                     ];
                     filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
                     map.push(`o${idx}`);
@@ -202,6 +206,13 @@ export default class Transcoder {
                 this._config.chunkDuration,
                 //'-dash_segment_type',
                 //'mp4',
+                "-avoid_negative_ts",
+                "disabled",
+                "-map_metadata",
+                "-1",
+                "-map_chapters",
+                "-1",
+
                 'manifest.mpd',
             );
         }

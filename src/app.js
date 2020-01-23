@@ -112,7 +112,6 @@ app.get('/session/:sessionid/hls/:track/:id.ts', (req, res) => {
 });
 
 // Front demo
-app.use('/web-legacy', express.static('public/web-legacy'));
 app.use('/web', express.static('public/web'));
 
 // Bind and start

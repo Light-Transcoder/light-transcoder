@@ -37,7 +37,7 @@ export default class Dash {
                         return [
                             `        <AdaptationSet contentType="audio" segmentAlignment="true" lang="${stream.language}">`,
                             `            <Representation id="${idx}" mimeType="audio/${stream.codec.chunkFormat}" codecs="${stream.codec.name}">`,
-                            `                <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="${stream.channels}" />`,
+                            `                <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="${stream.channels}" audioSamplingRate="${stream.sample}" />`,
                             `                <SegmentTemplate duration="${this._config.chunkDuration}" timescale="1" initialization="$RepresentationID$/initial.${['mp4','webm'].includes(stream.codec.chunkFormat) ? stream.codec.chunkFormat : 'und'}" media="$RepresentationID$/$Number$.${['mp4','webm'].includes(stream.codec.chunkFormat) ? stream.codec.chunkFormat.replace('mp4', 'm4s') : 'und'}" startNumber="0">`,
                             '                </SegmentTemplate>',
                             '            </Representation>',

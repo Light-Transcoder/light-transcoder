@@ -56,7 +56,6 @@ export default class Session {
         }, 3000);
         const callback = (x) => {
             clearTimeout(cancel);
-            console.log('callback', x)
             this._transcoder.sendChunkStream(track, id, res);
         }
         chunkStore.waitChunk(id, callback);

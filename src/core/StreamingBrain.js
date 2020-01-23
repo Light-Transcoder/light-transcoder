@@ -1,5 +1,5 @@
 import MediaAnalyzer from './analyze/MediaAnalyzer';
-import { getFramerate, getLanguage, getDuration, getVideoTracks, getAudioTracks, canDirectPlay, canDirectStreamVideo, canDirectStreamAudio } from './analyze/CompareFunctions';
+import { getFramerate, getLanguage, getDuration, getVideoTracks, getAudioTracks, canDirectPlay, canDirectStreamVideo, canDirectStreamAudio, directVideoStreamDelay } from './analyze/CompareFunctions';
 
 export default class StreamingBrain {
 
@@ -55,7 +55,7 @@ export default class StreamingBrain {
         const dashMap = compatibilityMap.find((e) => (e.type === 'DASH'));
         const hlsMap = compatibilityMap.find((e) => (e.type === 'HLS'));
 
-        console.log('DIRECT PLAY STATUS', canDirectPlay(this._meta.meta, downloadMap)[1])
+        //console.log('DIRECT PLAY STATUS', canDirectPlay(this._meta.meta, downloadMap)[1])
 
         // DOWNLOAD
         if (downloadMap && canDirectPlay(this._meta.meta, downloadMap)[0]) {
@@ -76,18 +76,20 @@ export default class StreamingBrain {
                 chunkDuration: profile.chunkDuration,
                 startAt: 0,
                 streams: [
-                    ...videoStreams.map((id) => {
-                        console.log('CAN STREAM VIDEO TRACK', id, canDirectStreamVideo(videoStreamsMeta[id], dashMap, profile.videoBitrate, profile.resized)[1])
+                    ...[videoStreams[0]].map((id) => {
+                        const canDirectStream = canDirectStreamVideo(videoStreamsMeta[id], dashMap, profile.videoBitrate, profile.resized)
+                        //console.log('CAN DIRECT STREAM VIDEO TRACK', id, canDirectStream[1]);
+                        //console.log(videoStreamsMeta[id]);
                         return {
                             id,
                             type: 'video',
                             path: this._input,
                             language: getLanguage(videoStreamsMeta[id]),
                             codec: {
-                                encoder: canDirectStreamVideo(videoStreamsMeta[id], dashMap, profile.videoBitrate, profile.resized)[0] ? 'copy' : 'libx264',
+                                encoder: canDirectStream[0] ? 'copy' : 'libx264',
                                 decoder: false, // FFmpeg decoder (not supported yet)
                                 chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-                                name: 'avc1.42c00d', // RFC6381 value (For dash manifest)
+                                name: 'avc1.42c00d', // 'avc1.640028', // RFC6381 value (For dash manifest)
                                 options: {
                                     x264subme: profile.x264subme,
                                     x264crf: profile.x264crf,
@@ -104,19 +106,25 @@ export default class StreamingBrain {
                         }
                     }),
                     ...audioStreams.map((id) => {
-                        console.log('CAN STREAM AUDIO TRACK', id, canDirectStreamAudio(audioStreamsMeta[id], dashMap, profile.audioBitrate)[1])
+                        const canDirectStream = canDirectStreamAudio(audioStreamsMeta[id], dashMap, profile.audioBitrate)
+                        const delay = directVideoStreamDelay(videoStreamsMeta, dashMap, profile.videoBitrate, profile.resized);
+                        //console.log('CAN DIRECT STREAM AUDIO TRACK', id, canDirectStream[1], delay)
+                        //console.log(audioStreamsMeta[id])
                         return {
                             id,
                             type: 'audio',
                             path: this._input,
                             language: getLanguage(audioStreamsMeta[id]),
                             codec: {
-                                encoder: canDirectStreamAudio(audioStreamsMeta[id], dashMap, profile.audioBitrate)[0] ? 'copy' : 'aac',
+                                encoder: canDirectStream[0] && delay === 0 ? 'copy' : 'aac',
                                 decoder: false, // FFmpeg decoder
                                 chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
                                 name: 'mp4a.40.2', // RFC6381 value (For dash manifest)
                             },
                             bitrate: profile.audioBitrate,
+                            delay,
+                            channels: 2,
+                            sample: audioStreamsMeta[id].sample_rate || 0,
                             meta: audioStreamsMeta[id],
                         }
                     })
@@ -154,18 +162,24 @@ export default class StreamingBrain {
                         },
                         meta: videoStreamsMeta[id],
                     })),
-                    ...audioStreams.map((id) => ({
-                        id,
-                        type: 'audio',
-                        path: this._input,
-                        language: getLanguage(audioStreamsMeta[id]),
-                        codec: {
-                            encoder: canDirectStreamAudio(audioStreamsMeta[id], hlsMap, profile.audioBitrate)[0] ? 'copy' : 'aac',
-                            decoder: false, // FFmpeg decoder
-                        },
-                        bitrate: profile.audioBitrate,
-                        meta: audioStreamsMeta[id],
-                    }))
+                    ...audioStreams.map((id) => {
+                        const canDirectStream = canDirectStreamAudio(audioStreamsMeta[id], hlsMap, profile.audioBitrate)
+                        const delay = directVideoStreamDelay(videoStreamsMeta, hlsMap, profile.videoBitrate, profile.resized);
+                        return {
+                            id,
+                            type: 'audio',
+                            path: this._input,
+                            language: getLanguage(audioStreamsMeta[id]),
+                            codec: {
+                                encoder: canDirectStream[0] && delay === 0 ? 'copy' : 'aac',
+                                decoder: false, // FFmpeg decoder
+                            },
+                            delay,
+                            channels: 2,
+                            sample: audioStreamsMeta[id].sample_rate || 0,
+                            meta: audioStreamsMeta[id],
+                        }
+                    })
                 ]
             }
         }

@@ -39,15 +39,17 @@ export const getContainer = (meta) => {
     if (meta.format.format_name.includes('avi'))
         return 'avi';
 
+    // TODO: Implement this function
+
     // Unknown container
-    console.warn('WARNING: Unknown container', meta.format);
+    //console.warn('WARNING: Unknown container', meta.format);
     return 'unknown';
 }
 export const compareContainer = (meta, container) => (container === '*' || getContainer(meta) === container);
 
 /*
     Supported video codec detection
-    - "x264"
+    - "h264"
     - "vp8"
     - "xvid"
     - "unknown" (if not detected)
@@ -170,7 +172,7 @@ export const canDirectStreamVideo = (metaTrack, supportedMap, maxBitrate = false
         return [false, 'DirectStream not available, player asked for lower video bitrate'];
     }
     //  Protocol codec support
-    const supportedProtocolCodecs = (supportedMap.type === 'DASH') ? ['x264', 'hevc', 'av1', 'vp8', 'vp9'] : (supportedMap.type === 'HLS') ? ['x264', 'hevc'] : [];
+    const supportedProtocolCodecs = (supportedMap.type === 'DASH') ? ['h264', 'hevc', 'av1', 'vp8', 'vp9'] : (supportedMap.type === 'HLS') ? ['h264', 'hevc'] : [];
     if (!compareVideoCodecArray(metaTrack, supportedProtocolCodecs)) {
         return [false, 'DirectStream not available, the streaming protocol don\'t support the video stream codec'];
     }
@@ -202,4 +204,16 @@ export const canDirectStreamAudio = (metaTrack, supportedMap = {}, maxBitrate = 
     }
     // Yes!
     return [true, 'DirectStream available!']
+}
+
+/*
+ * Check if we need to adjust audio track based on pts_start header information
+ */
+export const directVideoStreamDelay = (metaVideoTracks, supportedMap, maxBitrate, shouldResize) => {
+    if (!metaVideoTracks.length)
+        return 0;
+    const delay = Math.round(parseFloat(metaVideoTracks[0].start_time || 0) * 1000);
+    if (!canDirectStreamVideo(metaVideoTracks[0], supportedMap, maxBitrate, shouldResize)[0])
+        return 0;
+    return delay / 1000;
 }
