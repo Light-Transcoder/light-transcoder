@@ -274,7 +274,7 @@ export default class Transcoder {
         mkdirp(this._dir, (err) => {
             if (err)
                 return;
-            const binary = ffmpeg.path;
+            const binary = ffmpeg;
             const args = this.getCommand();
             console.log(`${binary} ${args.map((a) => (`'${a}'`)).join(' ')}`);
             const exec = execFile(binary, [...args], { cwd: this._dir });
