@@ -112,7 +112,7 @@ app.get('/session/:sessionid/hls/:track/:id.ts', (req, res) => {
 });
 
 // Front demo
-app.use('/web', express.static('public/web'));
+app.use('/', express.static('public/web'));
 
 // Bind and start
 const server = app.listen(config.server.port);
@@ -126,4 +126,4 @@ const server = app.listen(config.server.port);
         });
     });
 });
-console.log(`API was launched on port ${config.server.port}. Try the demo on ${config.server.public}web/`);
+console.log(`API was launched on port ${config.server.port}. Try the demo on ${config.server.public}`);
