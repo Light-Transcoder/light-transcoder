@@ -56,7 +56,7 @@ export const compareContainer = (meta, container) => (container === '*' || getCo
 */
 export const getVideoCodec = (metaTrack) => {
     if (metaTrack.codec_name === 'h264')
-        return 'x264';
+        return 'h264';
     if (metaTrack.codec_name === 'vp8')
         return 'vp8';
     if (metaTrack.codec_name === 'vp9')
@@ -222,7 +222,7 @@ export const getStreamDelay = (metaTrack) => {
  */
 export const analyzeVideoStreams = (path, videoStreams, videoStreamsMeta, profile, compatibilityMap) => ([videoStreams[0]].map((id) => {
     const canDirectStream = canDirectStreamVideo(videoStreamsMeta[id], compatibilityMap, profile.videoBitrate, profile.resized)
-    //console.log('CAN DIRECT STREAM VIDEO TRACK', id, canDirectStream[1]);
+    console.log('CAN DIRECT STREAM VIDEO TRACK', id, canDirectStream[1]);
     return {
         id,
         type: 'video',
