@@ -1,5 +1,5 @@
 import MediaAnalyzer from './analyze/MediaAnalyzer';
-import { getFramerate, getLanguage, getDuration, getVideoTracks, getAudioTracks, canDirectPlay, canDirectStreamVideo, canDirectStreamAudio, directVideoStreamDelay } from './analyze/CompareFunctions';
+import { getLanguage, getDuration, getVideoTracks, getAudioTracks, canDirectPlay, analyzeAudioStreams, analyzeVideoStreams } from './analyze/CompareFunctions';
 
 export default class StreamingBrain {
 
@@ -55,7 +55,7 @@ export default class StreamingBrain {
         const dashMap = compatibilityMap.find((e) => (e.type === 'DASH'));
         const hlsMap = compatibilityMap.find((e) => (e.type === 'HLS'));
 
-        //console.log('DIRECT PLAY STATUS', canDirectPlay(this._meta.meta, downloadMap)[1])
+        // console.log('DIRECT PLAY STATUS', canDirectPlay(this._meta.meta, downloadMap)[1])
 
         // DOWNLOAD
         if (downloadMap && canDirectPlay(this._meta.meta, downloadMap)[0]) {
@@ -70,117 +70,27 @@ export default class StreamingBrain {
 
         // DASH
         if (dashMap) {
+            const analyzedVideoStreams = analyzeVideoStreams(this._input, videoStreams, videoStreamsMeta, profile, dashMap);
+            const analyzedAudioStreams = analyzeAudioStreams(this._input, audioStreams, audioStreamsMeta, profile, dashMap, (analyzedVideoStreams.length ? analyzedVideoStreams[0].startDelay : 0));
             return {
                 protocol: 'DASH',
                 duration,
                 chunkDuration: profile.chunkDuration,
                 startAt: 0,
-                streams: [
-                    ...[videoStreams[0]].map((id) => {
-                        const canDirectStream = canDirectStreamVideo(videoStreamsMeta[id], dashMap, profile.videoBitrate, profile.resized)
-                        //console.log('CAN DIRECT STREAM VIDEO TRACK', id, canDirectStream[1]);
-                        //console.log(videoStreamsMeta[id]);
-                        return {
-                            id,
-                            type: 'video',
-                            path: this._input,
-                            language: getLanguage(videoStreamsMeta[id]),
-                            codec: {
-                                encoder: canDirectStream[0] ? 'copy' : 'libx264',
-                                decoder: false, // FFmpeg decoder (not supported yet)
-                                chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-                                name: 'avc1.42c00d', // 'avc1.640028', // RFC6381 value (For dash manifest)
-                                options: {
-                                    x264subme: profile.x264subme,
-                                    x264crf: profile.x264crf,
-                                    x264preset: profile.x264preset,
-                                },
-                            },
-                            bitrate: profile.videoBitrate,
-                            framerate: getFramerate(videoStreamsMeta[id]),
-                            resolution: {
-                                width: profile.width,
-                                height: profile.height,
-                            },
-                            meta: videoStreamsMeta[id],
-                        }
-                    }),
-                    ...audioStreams.map((id) => {
-                        const canDirectStream = canDirectStreamAudio(audioStreamsMeta[id], dashMap, profile.audioBitrate)
-                        const delay = directVideoStreamDelay(videoStreamsMeta, dashMap, profile.videoBitrate, profile.resized);
-                        //console.log('CAN DIRECT STREAM AUDIO TRACK', id, canDirectStream[1], delay)
-                        //console.log(audioStreamsMeta[id])
-                        return {
-                            id,
-                            type: 'audio',
-                            path: this._input,
-                            language: getLanguage(audioStreamsMeta[id]),
-                            codec: {
-                                encoder: canDirectStream[0] && delay === 0 ? 'copy' : 'aac',
-                                decoder: false, // FFmpeg decoder
-                                chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-                                name: 'mp4a.40.2', // RFC6381 value (For dash manifest)
-                            },
-                            bitrate: profile.audioBitrate,
-                            delay,
-                            channels: 2,
-                            sample: audioStreamsMeta[id].sample_rate || 0,
-                            meta: audioStreamsMeta[id],
-                        }
-                    })
-                ]
+                streams: [...analyzedVideoStreams, ...analyzedAudioStreams],
             }
         }
 
         // HLS
         if (hlsMap) {
+            const analyzedVideoStreams = analyzeVideoStreams(this._input, videoStreams, videoStreamsMeta, profile, hlsMap);
+            const analyzedAudioStreams = analyzeAudioStreams(this._input, audioStreams, audioStreamsMeta, profile, hlsMap, (analyzedVideoStreams.length ? analyzedVideoStreams[0].startDelay : 0));
             return {
                 protocol: 'HLS',
                 duration,
                 chunkDuration: profile.chunkDuration,
                 startAt: 0,
-                streams: [
-                    ...videoStreams.map((id) => ({
-                        id,
-                        type: 'video',
-                        path: this._input,
-                        language: getLanguage(videoStreamsMeta[id]),
-                        codec: {
-                            encoder: canDirectStreamVideo(videoStreamsMeta[id], hlsMap, profile.videoBitrate, profile.resized)[0] ? 'copy' : 'libx264',
-                            decoder: false, // FFmpeg decoder (not supported yet)
-                            options: {
-                                x264subme: profile.x264subme,
-                                x264crf: profile.x264crf,
-                                x264preset: profile.x264preset,
-                            },
-                        },
-                        bitrate: profile.videoBitrate,
-                        framerate: getFramerate(videoStreamsMeta[id]),
-                        resolution: {
-                            width: profile.width,
-                            height: profile.height,
-                        },
-                        meta: videoStreamsMeta[id],
-                    })),
-                    ...audioStreams.map((id) => {
-                        const canDirectStream = canDirectStreamAudio(audioStreamsMeta[id], hlsMap, profile.audioBitrate)
-                        const delay = directVideoStreamDelay(videoStreamsMeta, hlsMap, profile.videoBitrate, profile.resized);
-                        return {
-                            id,
-                            type: 'audio',
-                            path: this._input,
-                            language: getLanguage(audioStreamsMeta[id]),
-                            codec: {
-                                encoder: canDirectStream[0] && delay === 0 ? 'copy' : 'aac',
-                                decoder: false, // FFmpeg decoder
-                            },
-                            delay,
-                            channels: 2,
-                            sample: audioStreamsMeta[id].sample_rate || 0,
-                            meta: audioStreamsMeta[id],
-                        }
-                    })
-                ]
+                streams: [...analyzedVideoStreams, ...analyzedAudioStreams]
             }
         }
 
@@ -189,7 +99,7 @@ export default class StreamingBrain {
     }
 
     // Force to fit a resolution inside an other other (and keep the same ratio)
-    _calcOutputResolution(width, height, maxWidth, maxHeight) {
+    calcOutputResolution(width, height, maxWidth, maxHeight) {
         // Calc ratio
         const ratio = width / height;
 
@@ -235,7 +145,7 @@ export default class StreamingBrain {
         const resolution = this._meta.global.resolution;
 
         // Filter to avoid higher resolution than original file
-        const filtered = qualities.filter((e) => (e.width <= resolution.width && e.height <= resolution.height)).map(e => ({ ...e, ...this._calcOutputResolution(resolution.width, resolution.height, e.width, e.height), original: false }));
+        const filtered = qualities.filter((e) => (e.width <= resolution.width && e.height <= resolution.height)).map(e => ({ ...e, ...this.calcOutputResolution(resolution.width, resolution.height, e.width, e.height), original: false }));
 
         // Add a "Original" version with the original bitrate
         filtered.push({ height: resolution.height, width: resolution.width, bitrates: [Math.round(this._meta.global.bitrate / 1024)], original: true, resized: false })
