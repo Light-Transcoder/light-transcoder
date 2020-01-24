@@ -91,8 +91,12 @@ export default class Transcoder {
                         // Todo: HDR content + transcode => Tonemapping required
                         // Todo: Check rotated videos
                     ];
-                    filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
-                    map.push(`o${idx}`);
+                    if (streamFilters.length) {
+                        filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
+                        map.push(`o${idx}`);
+                    } else {
+                        map.push(streamTag);
+                    }
                 }
             }
             // Audio stream
@@ -109,8 +113,12 @@ export default class Transcoder {
                         ...((stream.delay > 0) ? [`atrim=${stream.delay}`, 'asetpts=PTS-STARTPTS'] : []),
                         ...((stream.delay < 0) ? [`adelay=${Array(stream.channels).fill(`${(-stream.delay) * 1000}`).join('|')}`] : []),
                     ];
-                    filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
-                    map.push(`o${idx}`);
+                    if (streamFilters.length) {
+                        filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
+                        map.push(`o${idx}`);
+                    } else {
+                        map.push(streamTag);
+                    }
                 }
             }
         });
