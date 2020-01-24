@@ -56,7 +56,7 @@ export const compareContainer = (meta, container) => (container === '*' || getCo
 */
 export const getVideoCodec = (metaTrack) => {
     if (metaTrack.codec_name === 'h264')
-        return 'x264';
+        return 'h264';
     if (metaTrack.codec_name === 'vp8')
         return 'vp8';
     if (metaTrack.codec_name === 'vp9')
@@ -184,7 +184,7 @@ export const canDirectStreamVideo = (metaTrack, supportedMap, maxBitrate = false
     return [true, 'DirectStream available!']
 }
 
-export const canDirectStreamAudio = (metaTrack, supportedMap = {}, maxBitrate = false) => {
+export const canDirectStreamAudio = (metaTrack, supportedMap = {}, maxBitrate = false, videoDelay = 0) => {
     // Invalid map
     if (!supportedMap || !['DASH', 'HLS'].includes(supportedMap.type)) {
         return [false, 'DirectStream not available, invalid map'];
@@ -202,6 +202,10 @@ export const canDirectStreamAudio = (metaTrack, supportedMap = {}, maxBitrate = 
     if (!compareAudioCodecArray(metaTrack, supportedMap.audio.map((c) => (c.codec)))) {
         return [false, 'DirectStream not available, audio codec not supported by player'];
     }
+    // Video delay (video in copy mode but start_pts !== 0), we must resync audio track
+    if (videoDelay !== 0) {
+        return [false, 'DirectStream not available, audio stream must be synchronized with video stream'];
+    }
     // Yes!
     return [true, 'DirectStream available!']
 }
@@ -209,11 +213,67 @@ export const canDirectStreamAudio = (metaTrack, supportedMap = {}, maxBitrate = 
 /*
  * Check if we need to adjust audio track based on pts_start header information
  */
-export const directVideoStreamDelay = (metaVideoTracks, supportedMap, maxBitrate, shouldResize) => {
-    if (!metaVideoTracks.length)
-        return 0;
-    const delay = Math.round(parseFloat(metaVideoTracks[0].start_time || 0) * 1000);
-    if (!canDirectStreamVideo(metaVideoTracks[0], supportedMap, maxBitrate, shouldResize)[0])
-        return 0;
-    return delay / 1000;
+export const getStreamDelay = (metaTrack) => {
+    return Math.round(parseFloat(metaTrack.start_time || 0) * 1000) / 1000;
 }
+
+/*
+ * Analyze videoStreams and take decision
+ */
+export const analyzeVideoStreams = (path, videoStreams, videoStreamsMeta, profile, compatibilityMap) => ([videoStreams[0]].map((id) => {
+    const canDirectStream = canDirectStreamVideo(videoStreamsMeta[id], compatibilityMap, profile.videoBitrate, profile.resized)
+    console.log('CAN DIRECT STREAM VIDEO TRACK', id, canDirectStream[1]);
+    return {
+        id,
+        type: 'video',
+        path,
+        canDirectStream: canDirectStream[0],
+        language: getLanguage(videoStreamsMeta[id]),
+        startDelay: (canDirectStream[0]) ? getStreamDelay(videoStreamsMeta[id]) : 0,
+        codec: {
+            encoder: canDirectStream[0] ? 'copy' : 'libx264',
+            decoder: false, // FFmpeg decoder (not supported yet)
+            chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
+            name: 'avc1.42c00d', // 'avc1.640028', // RFC6381 value (For dash manifest)
+            options: {
+                x264subme: profile.x264subme,
+                x264crf: profile.x264crf,
+                x264preset: profile.x264preset,
+            },
+        },
+        bitrate: profile.videoBitrate,
+        framerate: getFramerate(videoStreamsMeta[id]),
+        resolution: {
+            width: profile.width,
+            height: profile.height,
+            resized: profile.resized,
+        },
+        meta: videoStreamsMeta[id],
+    }
+}));
+
+/*
+ * Analyze audioStreams and take decision
+ */
+export const analyzeAudioStreams = (path, audioStreams, audioStreamsMeta, profile, compatibilityMap, videoDelay = 0) => (audioStreams.map((id) => {
+    const canDirectStream = canDirectStreamAudio(audioStreamsMeta[id], compatibilityMap, profile.audioBitrate, videoDelay);
+    //console.log('CAN DIRECT STREAM AUDIO TRACK', id, canDirectStream[1], delay)
+    return {
+        id,
+        type: 'audio',
+        path,
+        canDirectStream: canDirectStream[0],
+        language: getLanguage(audioStreamsMeta[id]),
+        codec: {
+            encoder: canDirectStream[0] ? 'copy' : 'aac',
+            decoder: false, // FFmpeg decoder
+            chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
+            name: 'mp4a.40.2', // RFC6381 value (For dash manifest)
+        },
+        bitrate: profile.audioBitrate,
+        delay: videoDelay,
+        channels: 2,
+        sample: audioStreamsMeta[id].sample_rate || 0,
+        meta: audioStreamsMeta[id],
+    }
+}));

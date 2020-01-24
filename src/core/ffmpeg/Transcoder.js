@@ -19,7 +19,6 @@ export default class Transcoder {
         this._chunkStores = [];
         this._logParser = false;
 
-
         // Init all the stores
         (new Array(this._config.streams.length)).fill('').forEach(() => {
             this._chunkStores.push(new ChunkStore());
@@ -81,18 +80,23 @@ export default class Transcoder {
                 }
                 // Transcoded stream
                 else {
-                    // Todo: compare height and width, don't rescale if not needed
+                    // Video filters
                     const streamFilters = [
-                        `scale=${stream.resolution.width}:${stream.resolution.height}:force_original_aspect_ratio=disable`,
-                        `setdar=${stream.resolution.width}/${stream.resolution.height}`,
+                        ...((stream.resolution.resized) ? [
+                            `scale=${stream.resolution.width}:${stream.resolution.height}:force_original_aspect_ratio=disable`,
+                        ] : []),
                         'format=pix_fmts=yuv420p|nv12',
 
                         // Todo: interlated content + rescale = KO
                         // Todo: HDR content + transcode => Tonemapping required
                         // Todo: Check rotated videos
                     ];
-                    filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
-                    map.push(`o${idx}`);
+                    if (streamFilters.length) {
+                        filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
+                        map.push(`o${idx}`);
+                    } else {
+                        map.push(streamTag);
+                    }
                 }
             }
             // Audio stream
@@ -105,11 +109,16 @@ export default class Transcoder {
                 // Transcoded stream
                 else {
                     const streamFilters = [
-                        ...(((stream.meta.channels || 0).channels !== stream.sample) ? [`aresample=async=1:ocl='stereo':osr=${stream.sample}`] : []),
-                        ...((stream.delay) ? [`atrim=${stream.delay}`, 'asetpts=PTS-STARTPTS'] : []),
+                        ...(((stream.meta.channels || 0) !== stream.channels) ? [`aresample=async=1:ocl='stereo':osr=${stream.sample}`] : []),
+                        ...((stream.delay > 0) ? [`atrim=${stream.delay}`, 'asetpts=PTS-STARTPTS'] : []),
+                        ...((stream.delay < 0) ? [`adelay=${Array(stream.channels).fill(`${(-stream.delay) * 1000}`).join('|')}`] : []),
                     ];
-                    filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
-                    map.push(`o${idx}`);
+                    if (streamFilters.length) {
+                        filters.push(`[${streamTag}]${streamFilters.join(',')}[o${idx}]`);
+                        map.push(`o${idx}`);
+                    } else {
+                        map.push(streamTag);
+                    }
                 }
             }
         });
@@ -217,7 +226,7 @@ export default class Transcoder {
             );
         }
         // LONG-POLLING
-        else if (this._config.protocol === 'POLLING') {
+        else if (this._config.protocol === 'LONG-POLLING') {
             // Todo
         }
         // EXPORT
