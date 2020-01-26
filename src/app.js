@@ -76,18 +76,18 @@ app.get('/session/:sessionid/dash/manifest.mpd', (req, res) => {
     session.routeSendDashManifest(req, res);
 })
 
-app.get('/session/:sessionid/dash/:track/:id.m4s', (req, res) => {
-    const session = SessionsArray[req.params.sessionid];
-    if (!session)
-        return res.status(404).send('Session not found');
-    session.routeSendChunk(req.params.track, parseInt(req.params.id, 10) + 1, req, res);
-});
-
-app.get('/session/:sessionid/dash/:track/initial.mp4', (req, res) => {
+app.get('/session/:sessionid/dash/:track/initial.*', (req, res) => {
     const session = SessionsArray[req.params.sessionid];
     if (!session)
         return res.status(404).send('Session not found');
     session.routeSendChunk(req.params.track, 'initial', req, res);
+});
+
+app.get('/session/:sessionid/dash/:track/:id.*', (req, res) => {
+    const session = SessionsArray[req.params.sessionid];
+    if (!session)
+        return res.status(404).send('Session not found');
+    session.routeSendChunk(req.params.track, parseInt(req.params.id, 10) + 1, req, res);
 });
 
 app.get('/session/:sessionid/hls/master.m3u8', (req, res) => {

@@ -23,7 +23,7 @@ export default class Dash {
                 `    mediaPresentationDuration="${getTimeString(this._config.duration)}"`,
                 `    maxSegmentDuration="${getTimeString(this._config.chunkDuration * 3)}"`,
                 `    minBufferTime="${getTimeString(this._config.chunkDuration * 1.5)}">`,
-                `    <Period start="${getTimeString(0)}" id="0" duration="${getTimeString(this._config.duration)}">`,
+                `    <Period start="${getTimeString(0)}" duration="${getTimeString(this._config.duration)}">`,
                 ...this._config.streams.map((stream, idx) => {
                     if (stream.type === 'video')
                         return [

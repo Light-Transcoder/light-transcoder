@@ -72,6 +72,7 @@ export const getVideoCodec = (metaTrack) => {
 }
 export const compareVideoCodec = (metaTrack, codec) => (codec === '*' || getVideoCodec(metaTrack) === codec);
 export const compareVideoCodecArray = (metaTrack, codecsArray) => (codecsArray.some(c => (compareVideoCodec(metaTrack, c))));
+export const getVideoDashFormat = (codec) => (['vp8', 'vp9'].includes(codec) ? 'webm' : 'mp4');
 
 /*
     Supported audio codec detection
@@ -103,6 +104,7 @@ export const getAudioCodec = (metaTrack) => {
 }
 export const compareAudioCodec = (metaTrack, codec) => (codec === '*' || getAudioCodec(metaTrack) === codec);
 export const compareAudioCodecArray = (metaTrack, codecsArray) => (codecsArray.some(c => (compareAudioCodec(metaTrack, c))));
+export const getAudioDashFormat = (codec) => (['vorbis', 'opus'].includes(codec) ? 'webm' : 'mp4');
 
 export const getFramerate = (metaTrack) => {
     return metaTrack.avg_frame_rate || '30000/1001';
@@ -217,6 +219,28 @@ export const getStreamDelay = (metaTrack) => {
     return Math.round(parseFloat(metaTrack.start_time || 0) * 1000) / 1000;
 }
 
+export const getVideoRfcCodecName = (codec) => { // RFC6381 value (For dash manifest)
+    if (codec === 'h264')
+        return 'avc1.42c00d';
+    if (codec === 'vp8')
+        return 'vp8';
+    if (codec === 'vp9')
+        return 'vp9';
+    if (codec === 'av1')
+        return 'av01.0.04M.08';
+    return 'avc1.42c00d';
+}
+
+export const getAudioRfcCodecName = (codec) => { // RFC6381 value (For dash manifest)
+    if (codec === 'opus')
+        return 'opus';
+    if (codec === 'vorbis')
+        return 'vorbis';
+    if (codec === 'aac')
+        return 'mp4a.40.2';
+    return 'mp4a.40.2';
+}
+
 /*
  * Analyze videoStreams and take decision
  */
@@ -233,8 +257,8 @@ export const analyzeVideoStreams = (path, videoStreams, videoStreamsMeta, profil
         codec: {
             encoder: canDirectStream[0] ? 'copy' : 'libx264',
             decoder: false, // FFmpeg decoder (not supported yet)
-            chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-            name: 'avc1.42c00d', // 'avc1.640028', // RFC6381 value (For dash manifest)
+            chunkFormat: getVideoDashFormat(canDirectStream[0] ? getVideoCodec(videoStreamsMeta[id]) : 'h264'),
+            name: getVideoRfcCodecName(canDirectStream[0] ? getVideoCodec(videoStreamsMeta[id]) : 'h264'),
             options: {
                 x264subme: profile.x264subme,
                 x264crf: profile.x264crf,
@@ -267,8 +291,8 @@ export const analyzeAudioStreams = (path, audioStreams, audioStreamsMeta, profil
         codec: {
             encoder: canDirectStream[0] ? 'copy' : 'aac',
             decoder: false, // FFmpeg decoder
-            chunkFormat: 'mp4', // Chunk output file format ('mp4' or 'webm' for dash || 'mp4' for hls)
-            name: 'mp4a.40.2', // RFC6381 value (For dash manifest)
+            chunkFormat: getAudioDashFormat(canDirectStream[0] ? getAudioCodec(audioStreamsMeta[id]) : 'aac'),
+            name: getAudioRfcCodecName(canDirectStream[0] ? getAudioCodec(audioStreamsMeta[id]) : 'aac'),
         },
         bitrate: profile.audioBitrate,
         delay: videoDelay,

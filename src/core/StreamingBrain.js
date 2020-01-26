@@ -63,7 +63,7 @@ export default class StreamingBrain {
                 protocol: 'DOWNLOAD',
                 duration,
                 chunkDuration: 0,
-                startAt: 0,
+                startChunkAt: 0,
                 streams: [],
             }
         }
@@ -76,7 +76,7 @@ export default class StreamingBrain {
                 protocol: 'DASH',
                 duration,
                 chunkDuration: profile.chunkDuration,
-                startAt: 0,
+                startChunkAt: 0,
                 streams: [...analyzedVideoStreams, ...analyzedAudioStreams],
             }
         }
@@ -89,7 +89,7 @@ export default class StreamingBrain {
                 protocol: 'HLS',
                 duration,
                 chunkDuration: profile.chunkDuration,
-                startAt: 0,
+                startChunkAt: 0,
                 streams: [...analyzedVideoStreams, ...analyzedAudioStreams]
             }
         }

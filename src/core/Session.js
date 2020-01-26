@@ -58,7 +58,6 @@ export default class Session {
             clearTimeout(cancel);
             this._transcoder.sendChunkStream(track, id, res);
         }
-        // Todo something strange here
         chunkStore.waitChunk(id, callback);
     }
 
