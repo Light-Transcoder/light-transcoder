@@ -177,7 +177,7 @@ export default class StreamingBrain {
         const x264preset = ['slow', 'medium', 'fast', 'veryfast'][profile.qualityIndex] || 'fast';
 
         // Adjust chunk duration
-        const chunkDuration = [6, 5, 4, 3][profile.qualityIndex] || 5;
+        const chunkDuration = [10, 8][profile.qualityIndex] || 8;
 
         // Calculate approximative bitrates
         const audioBitrate = (10 * profile.bitrate / 100) < 64 ? 64 : (10 * profile.bitrate / 100) > 2048 ? 2048 : Math.round(10 * profile.bitrate / 100);

@@ -213,6 +213,8 @@ export default class Transcoder {
                 'dash',
                 '-seg_duration',
                 this._config.chunkDuration,
+                "-segment_time_delta",
+                "0.0625",
                 //'-dash_segment_type',
                 //'mp4',
                 "-avoid_negative_ts",
@@ -221,7 +223,7 @@ export default class Transcoder {
                 "-1",
                 "-map_chapters",
                 "-1",
-
+               
                 'manifest.mpd',
             );
         }

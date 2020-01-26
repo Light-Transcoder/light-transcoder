@@ -53,11 +53,12 @@ export default class Session {
         const cancel = setTimeout(() => {
             chunkStore.waitChunkCancel(id, callback);
             res.status(404).send('404')
-        }, 3000);
+        }, 2000);
         const callback = (x) => {
             clearTimeout(cancel);
             this._transcoder.sendChunkStream(track, id, res);
         }
+        // Todo something strange here
         chunkStore.waitChunk(id, callback);
     }
 
