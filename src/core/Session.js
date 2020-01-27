@@ -7,7 +7,7 @@ import HlsManifest from './manifest/Hls'
 
 export default class Session {
 
-    constructor(input = '', videoStream = '0', audioStream = '0', profileId = 0, compatibilityMap = []) {
+    constructor(input = '', videoStream = [], audioStream = [], profileId = 0, compatibilityMap = []) {
         this._uuid = uuid();
         this._dir = `./tmp/session-${this._uuid}/`
         this._streamingBrain = new StreamingBrain(input);
@@ -22,7 +22,7 @@ export default class Session {
 
     async getConfig() {
         const profile = (await this._streamingBrain.getProfile(this._profileId));
-        const config = (await this._streamingBrain.takeDecision(this._compatibilityMap, profile, [this._videoStream], [this._audioStream]));
+        const config = (await this._streamingBrain.takeDecision(this._compatibilityMap, profile, this._videoStream, this._audioStream));
         return config;
     }
 
@@ -53,7 +53,7 @@ export default class Session {
         const cancel = setTimeout(() => {
             chunkStore.waitChunkCancel(id, callback);
             res.status(404).send('404')
-        }, 3000);
+        }, 2000);
         const callback = (x) => {
             clearTimeout(cancel);
             this._transcoder.sendChunkStream(track, id, res);

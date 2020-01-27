@@ -13,6 +13,7 @@ export default class Transcoder {
         config = {},
         dir = './',
     }) {
+        this._exec = false;
         this._uuid = uuid();
         this._config = config;
         this._dir = `${dir}transcoder-${this._uuid}/`;
@@ -50,14 +51,10 @@ export default class Transcoder {
         /* 
         TODO
         // Bind codecs
-        args.push('-codec:0', 'vc1', '-codec:1', 'ac3',)
+        args.push('-codec:0', 'vc1', '-codec:1', 'ac3',)*/
 
-        // TODO calc start based on chunk duration
-        args.push('-ss', this._startAt, '-noaccurate_seek') // Personnal note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
-        */
-
-        // 
-        args.push('-ss', '0', '-noaccurate_seek');
+        // Seek support
+        args.push('-ss', Math.floor(this._config.startChunkAt * this._config.chunkDuration), '-noaccurate_seek') // Personnal note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
 
         // Bind inputs
         inputs.forEach(input => {
@@ -144,8 +141,6 @@ export default class Transcoder {
                     args.push(
                         `-codec:${idx}`,
                         'copy',
-                        `-force_key_frames:${idx}`,
-                        `expr:gte(t,${this._config.startAt === 0 ? '' : `${this._config.startAt}+`}n_forced*${this._config.chunkDuration})`
                     )
                 }
                 // Transcoded stream
@@ -165,10 +160,14 @@ export default class Transcoder {
                         stream.codec.options.x264preset,
                         `-x264opts:${idx}`,
                         `subme=${stream.codec.options.x264subme}:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none`,
-                        `-force_key_frames:${idx}`,
-                        `expr:gte(t,${this._config.startAt === 0 ? '' : `${this._config.startAt}+`}n_forced*${this._config.chunkDuration})`
                     );
                 }
+
+                // Force keyframes
+                args.push(
+                    `-force_key_frames:${idx}`,
+                    `expr:gte(t,${this._config.startChunkAt === 0 ? '' : `${Math.floor(this._config.startChunkAt * this._config.chunkDuration)}+`}n_forced*${this._config.chunkDuration})`
+                );
             }
             // Audio stream
             else if (stream.type === 'audio') {
@@ -215,6 +214,8 @@ export default class Transcoder {
                 this._config.chunkDuration,
                 //'-dash_segment_type',
                 //'mp4',
+                //"-skip_to_segment",
+                //this._config.startChunkAt,
                 "-avoid_negative_ts",
                 "disabled",
                 "-map_metadata",
@@ -237,7 +238,7 @@ export default class Transcoder {
         args.push(
             '-start_at_zero',
             '-copyts',
-            ...((this._config.startAt === 0) ? [
+            ...((this._config.startChunkAt === 0) ? [
                 '-vsync',
                 'cfr'
             ] : [])
@@ -258,15 +259,16 @@ export default class Transcoder {
 
     sendChunkStream(track, id, res) {
         return new Promise((resolve, reject) => {
+            const stream = this._config.streams[track];
             let path = false;
             if (this._config.protocol === 'HLS') {
-                path = `${this._dir}hls${id}.ts`; // Basic HLS chunk
+                path = `${this._dir}hls${this._config.startChunkAt + parseInt(id, 10)}.ts`; // Basic HLS chunk
             } else if (this._config.protocol === 'DASH' && id !== 'initial') {
-                path = `${this._dir}chunk-stream${track}-${(id).toString().padStart(5, '0')}.m4s`; // Basic DASH chunk
+                path = `${this._dir}chunk-stream${track}-${(this._config.startChunkAt + parseInt(id, 10)).toString().padStart(5, '0')}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Basic DASH chunk
             } else if (this._config.protocol === 'DASH' && id === 'initial') {
-                path = `${this._dir}init-stream${track}.m4s`; // Initial DASH chunk
+                path = `${this._dir}init-stream${track}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Initial DASH chunk
             }
-            console.log('Sending chunk', id, path);
+            console.log('Sending chunk', id, path, stream.codec.chunkFormat);
             stat(path, (err) => {
                 if (err)
                     return reject(err);
@@ -285,8 +287,8 @@ export default class Transcoder {
                 return;
             const binary = ffmpeg;
             const args = this.getCommand();
-            console.log(`${binary} ${args.map((a) => (`'${a}'`)).join(' ')}`);
-            const exec = execFile(binary, [...args], { cwd: this._dir });
+            console.log(`${binary} ${args.map((a) => (`'${a}'`)).join(' ')} `);
+            this._exec = execFile(binary, [...args], { cwd: this._dir });
             const end = () => {
                 /* resolve({
                      binary,
@@ -296,14 +298,21 @@ export default class Transcoder {
                      stderr,
                  });*/
             };
-            exec.stdout.on('data', (data) => {
+            this._exec.stdout.on('data', (data) => {
                 stdout += data;
             });
-            exec.stderr.on('data', (data) => {
+            this._exec.stderr.on('data', (data) => {
                 this._logParser.parse(data);
             });
-            exec.on('close', end);
-            exec.on('exit', end);
+            this._exec.on('close', end);
+            this._exec.on('exit', end);
         })
+    }
+
+    stop() {
+        if (this._exec)
+            this.exec.kill();
+        this.exec = false;
+        return;
     }
 }

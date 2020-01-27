@@ -63,7 +63,7 @@ export default class StreamingBrain {
                 protocol: 'DOWNLOAD',
                 duration,
                 chunkDuration: 0,
-                startAt: 0,
+                startChunkAt: 0,
                 streams: [],
             }
         }
@@ -76,7 +76,7 @@ export default class StreamingBrain {
                 protocol: 'DASH',
                 duration,
                 chunkDuration: profile.chunkDuration,
-                startAt: 0,
+                startChunkAt: 0,
                 streams: [...analyzedVideoStreams, ...analyzedAudioStreams],
             }
         }
@@ -89,7 +89,7 @@ export default class StreamingBrain {
                 protocol: 'HLS',
                 duration,
                 chunkDuration: profile.chunkDuration,
-                startAt: 0,
+                startChunkAt: 0,
                 streams: [...analyzedVideoStreams, ...analyzedAudioStreams]
             }
         }
@@ -176,12 +176,12 @@ export default class StreamingBrain {
         const x264crf = [24, 22, 20, 18][profile.qualityIndex] || 23;
         const x264preset = ['slow', 'medium', 'fast', 'veryfast'][profile.qualityIndex] || 'fast';
 
-        // Adjust chunk duration
-        const chunkDuration = [6, 5, 4, 3][profile.qualityIndex] || 5;
+        // Chunk duration
+        const chunkDuration = 8;
 
         // Calculate approximative bitrates
         const audioBitrate = (10 * profile.bitrate / 100) < 64 ? 64 : (10 * profile.bitrate / 100) > 2048 ? 2048 : Math.round(10 * profile.bitrate / 100);
-        const videoBitrate = Math.round((profile.bitrate - audioBitrate) * 0.95);
+        const videoBitrate = Math.round((profile.bitrate - audioBitrate) * 0.98);
 
         // Return encoder settings
         return { ...profile, x264subme, x264crf, x264preset, audioBitrate, videoBitrate, chunkDuration };

@@ -43,14 +43,12 @@ app.post('/session', async (req, res) => {
         return res.status(400).send('url not found in body');
     if (typeof (req.body.profile) === 'undefined')
         return res.status(400).send('profile not found in body');
-    if (typeof (req.body.video) === 'undefined')
-        return res.status(400).send('video not found in body');
-    if (typeof (req.body.audio) === 'undefined')
-        return res.status(400).send('audio not found in body');
+    if (typeof (req.body.video) === 'undefined' && typeof (req.body.audio) === 'undefined')
+        return res.status(400).send('video and/or audio not found in body');
     if (typeof (req.body.supported) === 'undefined')
         return res.status(400).send('supported not found in body');
     const profileId = parseInt(req.body.profile, 10);
-    const session = new Session(req.body.url, req.body.video, req.body.audio, profileId, req.body.supported);
+    const session = new Session(req.body.url, (typeof (req.body.video) === 'undefined') ? [] : [req.body.video], (typeof (req.body.audio) === 'undefined') ? [] : [req.body.audio], profileId, req.body.supported);
     session.start();
     SessionsArray[session.getUuid()] = session;
     const streamingConfig = await session.getConfig()
@@ -76,18 +74,18 @@ app.get('/session/:sessionid/dash/manifest.mpd', (req, res) => {
     session.routeSendDashManifest(req, res);
 })
 
-app.get('/session/:sessionid/dash/:track/:id.m4s', (req, res) => {
-    const session = SessionsArray[req.params.sessionid];
-    if (!session)
-        return res.status(404).send('Session not found');
-    session.routeSendChunk(req.params.track, parseInt(req.params.id, 10) + 1, req, res);
-});
-
-app.get('/session/:sessionid/dash/:track/initial.mp4', (req, res) => {
+app.get('/session/:sessionid/dash/:track/initial.*', (req, res) => {
     const session = SessionsArray[req.params.sessionid];
     if (!session)
         return res.status(404).send('Session not found');
     session.routeSendChunk(req.params.track, 'initial', req, res);
+});
+
+app.get('/session/:sessionid/dash/:track/:id.*', (req, res) => {
+    const session = SessionsArray[req.params.sessionid];
+    if (!session)
+        return res.status(404).send('Session not found');
+    session.routeSendChunk(req.params.track, parseInt(req.params.id, 10) + 1, req, res);
 });
 
 app.get('/session/:sessionid/hls/master.m3u8', (req, res) => {
