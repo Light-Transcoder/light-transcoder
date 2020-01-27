@@ -55,8 +55,12 @@ export const compareContainer = (meta, container) => (container === '*' || getCo
     - "unknown" (if not detected)
 */
 export const getVideoCodec = (metaTrack) => {
+    if (!metaTrack)
+        return 'unknown';
     if (metaTrack.codec_name === 'h264')
         return 'h264';
+    if (metaTrack.codec_name === 'hevc')
+        return 'hevc';
     if (metaTrack.codec_name === 'vp8')
         return 'vp8';
     if (metaTrack.codec_name === 'vp9')
@@ -85,6 +89,8 @@ export const getVideoDashFormat = (codec) => (['vp8', 'vp9'].includes(codec) ? '
     - "unknown" (if not detected)
 */
 export const getAudioCodec = (metaTrack) => {
+    if (!metaTrack)
+        return 'unknown';
     if (metaTrack.codec_name === 'opus')
         return 'opus';
     if (metaTrack.codec_name === 'aac')
@@ -111,6 +117,8 @@ export const getFramerate = (metaTrack) => {
 }
 
 export const getBitrate = (metaTrack) => {
+    if (!metaTrack)
+        return 0;
     if (metaTrack.bit_rate && intCast(metaTrack.bit_rate) > 0)
         return intCast(metaTrack.bit_rate) / 1024;
     if (metaTrack.tags && metaTrack.tags.BPS) {
@@ -120,7 +128,7 @@ export const getBitrate = (metaTrack) => {
 }
 
 export const getLanguage = (metaTrack) => {
-    if (metaTrack.tags) {
+    if (metaTrack && metaTrack.tags) {
         if (metaTrack.tags.LANGUAGE) {
             return metaTrack.tags.LANGUAGE;
         }
@@ -228,6 +236,8 @@ export const getVideoRfcCodecName = (codec) => { // RFC6381 value (For dash mani
         return 'vp9';
     if (codec === 'av1')
         return 'av01.0.04M.08';
+    if (codec === 'hevc')
+        return 'hev1';
     return 'avc1.42c00d';
 }
 

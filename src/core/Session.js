@@ -7,7 +7,7 @@ import HlsManifest from './manifest/Hls'
 
 export default class Session {
 
-    constructor(input = '', videoStream = '0', audioStream = '0', profileId = 0, compatibilityMap = []) {
+    constructor(input = '', videoStream = [], audioStream = [], profileId = 0, compatibilityMap = []) {
         this._uuid = uuid();
         this._dir = `./tmp/session-${this._uuid}/`
         this._streamingBrain = new StreamingBrain(input);
@@ -22,7 +22,7 @@ export default class Session {
 
     async getConfig() {
         const profile = (await this._streamingBrain.getProfile(this._profileId));
-        const config = (await this._streamingBrain.takeDecision(this._compatibilityMap, profile, [this._videoStream], [this._audioStream]));
+        const config = (await this._streamingBrain.takeDecision(this._compatibilityMap, profile, this._videoStream, this._audioStream));
         return config;
     }
 
