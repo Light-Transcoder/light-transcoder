@@ -1,7 +1,7 @@
 # Light-Transcoder
 
 This project contains an HTTP-API to allow real-time transcode of media files into DASH / HLS streams.  
-This API will provide you a streamable link, based on compatibility map provided by you app.  
+This API will provide you a streamable link, based on compatibility map provided by your app.  
 The API is similar to the "StreamingBrain" feature from Plex, Emby or Jellyfin.
 
 ## Try it
