@@ -17,7 +17,7 @@ export default class Session {
         this._videoStream = videoStream;
         this._audioStream = audioStream;
         this._compatibilityMap = compatibilityMap;
-        this._transcoder = false;
+        this._transcoder = [];
     }
 
     async getConfig() {
@@ -26,13 +26,15 @@ export default class Session {
         return config;
     }
 
-    async initTranscoder() {
+    async addTranscoder(startChunkAt = 0) {
         const config = await this.getConfig();
         if (config.protocol === 'HLS' || config.protocol === 'DASH') {
-            this._transcoder = new Transcoder({
-                config,
+            const idx = this._transcoder.push(new Transcoder({
+                ...config,
+                startChunkAt,
                 dir: this._dir,
-            });
+            }));
+            this._transcoder[idx].start();
             return true;
         }
         return false;
@@ -43,20 +45,29 @@ export default class Session {
     }
 
     routeSendChunk(track, id, _, res) {
-        if (!this._transcoder.getChunkStores)
-            return res.status(404).send('404');
-        const chunkStores = this._transcoder.getChunkStores();
-        if (!chunkStores[track]) {
-            return res.status(404).send('404');
+        // No transcoder found, need to start it
+        if (!this._transcoder.length || this._transcoder.some(e => (!e.getChunkStores)))
+            return res.status(404).send('404 - Transcoder not initialized');
+
+        // If track don't exist
+        if (track < 0 || track >= this._videoStream.length + this._audioStream.length) {
+            return res.status(404).send('404 - Track not found');
         }
-        const chunkStore = chunkStores[track];
+
+        // Timeout
         const cancel = setTimeout(() => {
-            chunkStore.waitChunkCancel(id, callback);
+            chunkStores.forEach((chunkStore) => {
+                chunkStore.waitChunkCancel(id, callback);
+            })
             res.status(404).send('404')
         }, 2000);
+
+
+        const chunkStore = chunkStores[track];
+
         const callback = (x) => {
             clearTimeout(cancel);
-            this._transcoder.sendChunkStream(track, id, res);
+            this._transcoder[0].sendChunkStream(track, id, res);
         }
         chunkStore.waitChunk(id, callback);
     }
@@ -68,7 +79,7 @@ export default class Session {
             manifest.headers.forEach(e => (res.set(e[0], e[1])))
             return res.send(manifest.content);
         }
-        return res.status(404).send('It\'s not a DASH session');
+        return res.status(404).send('404 - It\'s not a DASH session');
     }
 
     async routeSendHLSMaster(_, res) {
@@ -78,7 +89,7 @@ export default class Session {
             manifest.headers.forEach(e => (res.set(e[0], e[1])))
             return res.send(manifest.content);
         }
-        return res.status(404).send('It\'s not a HLS session');
+        return res.status(404).send('404 - It\'s not a HLS session');
     }
 
     async routeSendHLSStream(_, res) {
@@ -88,15 +99,15 @@ export default class Session {
             manifest.headers.forEach(e => (res.set(e[0], e[1])))
             return res.send(manifest.content);
         }
-        return res.status(404).send('It\'s not a HLS session');
+        return res.status(404).send('404 - It\'s not a HLS session');
     }
 
     async start() {
         const config = await this.getConfig();
         if (config.protocol === 'HLS' || config.protocol === 'DASH') {
-            if (!this._transcoder)
-                await this.initTranscoder();
-            return this._transcoder.start();
+            if (!this._transcoder.length) {
+                await this.addTranscoder(0);
+            }
         }
         return false;
     }

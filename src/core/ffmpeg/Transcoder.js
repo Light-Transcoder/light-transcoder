@@ -37,6 +37,10 @@ export default class Transcoder {
         });
     }
 
+canServeFileSoon(track, id) {
+    
+}
+
     getChunkStores() {
         return this._chunkStores;
     }
