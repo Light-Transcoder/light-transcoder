@@ -22,7 +22,7 @@ export default class Transcoder {
 
         // Init all the stores
         (new Array(this._config.streams.length)).fill('').forEach(() => {
-            this._chunkStores.push(new ChunkStore());
+            this._chunkStores.push(new ChunkStore(this._config.startChunkAt));
         })
 
         // Init the log parser
@@ -37,9 +37,16 @@ export default class Transcoder {
         });
     }
 
-canServeFileSoon(track, id) {
-    
-}
+    canServeFileSoon(track, id) {
+        const lastChunk = (this._chunkStores[track] && this._chunkStores[track].getLastChunkId) ? this._chunkStores[track].getLastChunkId() : this._config.startChunkAt;
+        if (id < this._config.startChunkAt || id > lastChunk + 5)
+            return false;
+        return true;
+    }
+
+    canServeFileNow(track, id) {
+        return this._chunkStores[track].getChunkStatus(id);
+    }
 
     getChunkStores() {
         return this._chunkStores;

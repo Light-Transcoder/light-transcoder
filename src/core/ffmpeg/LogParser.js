@@ -65,7 +65,7 @@ export default class FFmpegLogParser {
                     // If we need to send an initial, we can do it because a chunk is ready
                     if (this._currentChunks[track] === 'initial')
                         this._onChunkReady(track, chunkCast('initial'));
-                    
+
                     this._currentChunks[track] = id;
                     this._onChunkStart(track, id);
                 }

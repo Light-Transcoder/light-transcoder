@@ -30,11 +30,13 @@ export default class Session {
         const config = await this.getConfig();
         if (config.protocol === 'HLS' || config.protocol === 'DASH') {
             const idx = this._transcoder.push(new Transcoder({
-                ...config,
-                startChunkAt,
+                config: {
+                    ...config,
+                    startChunkAt
+                },
                 dir: this._dir,
             }));
-            this._transcoder[idx].start();
+            this._transcoder[idx - 1].start();
             return true;
         }
         return false;
@@ -44,7 +46,11 @@ export default class Session {
         return this._uuid;
     }
 
-    routeSendChunk(track, id, _, res) {
+    getChunkStores(track) {
+        return this._transcoder.map(t => (t.getChunkStores()[track])).filter((e) => (!!e));
+    }
+
+    async routeSendChunk(track, id, _, res) {
         // No transcoder found, need to start it
         if (!this._transcoder.length || this._transcoder.some(e => (!e.getChunkStores)))
             return res.status(404).send('404 - Transcoder not initialized');
@@ -54,22 +60,38 @@ export default class Session {
             return res.status(404).send('404 - Track not found');
         }
 
+        // Chunk is ready or will be ready soon
+        if (!this._transcoder.some(t => (t.canServeFileSoon(track, id)))) {
+            console.log('SEEK REQUIRED', id, track);
+            await this.addTranscoder(id);
+        }
+
+        // Callback
+        const callback = (x) => {
+            // Remove other callbacks
+            clearTimeout(cancel);
+
+            // Serve file
+            this._transcoder.forEach(transcoder => {
+                this.getChunkStores(track).forEach((chunkStore) => {
+                    chunkStore.waitChunkCancel(id, callback);
+                })
+                transcoder.sendChunkStream(track, id, res);
+            });
+        }
+
         // Timeout
         const cancel = setTimeout(() => {
-            chunkStores.forEach((chunkStore) => {
+            this.getChunkStores(track).forEach((chunkStore) => {
                 chunkStore.waitChunkCancel(id, callback);
             })
-            res.status(404).send('404')
+            res.status(404).send('404 - Chunk was\'t generated in time');
         }, 2000);
 
-
-        const chunkStore = chunkStores[track];
-
-        const callback = (x) => {
-            clearTimeout(cancel);
-            this._transcoder[0].sendChunkStream(track, id, res);
-        }
-        chunkStore.waitChunk(id, callback);
+        // Wait chunk
+        this.getChunkStores(track).forEach((chunkStore) => {
+            chunkStore.waitChunk(id, callback);
+        })
     }
 
     async routeSendDashManifest(_, res) {

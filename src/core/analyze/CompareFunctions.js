@@ -256,7 +256,7 @@ export const getAudioRfcCodecName = (codec) => { // RFC6381 value (For dash mani
  */
 export const analyzeVideoStreams = (path, videoStreams, videoStreamsMeta, profile, compatibilityMap) => ([videoStreams[0]].map((id) => {
     const canDirectStream = canDirectStreamVideo(videoStreamsMeta[id], compatibilityMap, profile.videoBitrate, profile.resized)
-    console.log('CAN DIRECT STREAM VIDEO TRACK', id, canDirectStream[1]);
+    // console.log('CAN DIRECT STREAM VIDEO TRACK', id, canDirectStream[1]);
     return {
         id,
         type: 'video',
@@ -291,7 +291,7 @@ export const analyzeVideoStreams = (path, videoStreams, videoStreamsMeta, profil
  */
 export const analyzeAudioStreams = (path, audioStreams, audioStreamsMeta, profile, compatibilityMap, videoDelay = 0) => (audioStreams.map((id) => {
     const canDirectStream = canDirectStreamAudio(audioStreamsMeta[id], compatibilityMap, profile.audioBitrate, videoDelay);
-    //console.log('CAN DIRECT STREAM AUDIO TRACK', id, canDirectStream[1], delay)
+    // console.log('CAN DIRECT STREAM AUDIO TRACK', id, canDirectStream[1], delay)
     return {
         id,
         type: 'audio',
