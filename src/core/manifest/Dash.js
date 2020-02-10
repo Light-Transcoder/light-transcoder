@@ -21,8 +21,8 @@ export default class Dash {
                 '    profiles="urn:mpeg:dash:profile:isoff-live:2011"',
                 '    type="static"',
                 `    mediaPresentationDuration="${getTimeString(this._config.duration)}"`,
-                `    maxSegmentDuration="${getTimeString(this._config.chunkDuration * 3)}"`,
-                `    minBufferTime="${getTimeString(this._config.chunkDuration * 1.5)}">`,
+                `    maxSegmentDuration="${getTimeString(this._config.chunkDuration * 2)}"`,
+                `    minBufferTime="${getTimeString(this._config.chunkDuration * 3)}">`,
                 `    <Period start="${getTimeString(0)}" duration="${getTimeString(this._config.duration)}">`,
                 ...this._config.streams.map((stream, idx) => {
                     if (stream.type === 'video')

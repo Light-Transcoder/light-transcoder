@@ -69,7 +69,7 @@ export default class StreamingBrain {
         }
 
         // DASH
-        if (dashMap) {
+       /* if (dashMap) {
             const analyzedVideoStreams = analyzeVideoStreams(this._input, videoStreams, videoStreamsMeta, profile, dashMap);
             const analyzedAudioStreams = analyzeAudioStreams(this._input, audioStreams, audioStreamsMeta, profile, dashMap, (analyzedVideoStreams.length ? analyzedVideoStreams[0].startDelay : 0));
             return {
@@ -79,7 +79,7 @@ export default class StreamingBrain {
                 startChunkAt: 0,
                 streams: [...analyzedVideoStreams, ...analyzedAudioStreams],
             }
-        }
+        }*/
 
         // HLS
         if (hlsMap) {

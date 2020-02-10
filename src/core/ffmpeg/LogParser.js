@@ -41,6 +41,7 @@ export default class FFmpegLogParser {
                 if (parsed.length === 4) {
                     const id = chunkCast(parsed[2]);
                     this._currentChunks[0] = id;
+                    console.log('here', this._currentChunks[0])
                     this._onChunkStart(0, chunkCast(parsed[2]));
                 }
             }
@@ -60,7 +61,7 @@ export default class FFmpegLogParser {
                 const parsed = (/(.*)chunk-stream([0-9]+)-([0-9]+).(.*)/gm).exec(data);
                 if (parsed.length === 5) {
                     const track = intCast(parsed[2]);
-                    const id = chunkCast(parsed[3]);
+                    const id = chunkCast(parsed[3]) - 1; // FFmpeg starts at chunk 1 for DASH
 
                     // If we need to send an initial, we can do it because a chunk is ready
                     if (this._currentChunks[track] === 'initial')

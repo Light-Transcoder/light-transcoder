@@ -46,52 +46,50 @@ export default class Session {
         return this._uuid;
     }
 
-    getChunkStores(track) {
-        return this._transcoder.map(t => (t.getChunkStores()[track])).filter((e) => (!!e));
+    serveChunk(track, id, res) {
+        for (let i = 0; i < this._transcoder.length; i++) {
+            if (this._transcoder[i].canServeFileNow(track, id)) {
+                this._transcoder[i].sendChunkStream(track, id, res);
+                return true;
+            }
+        }
+        return false;
     }
 
     async routeSendChunk(track, id, _, res) {
-        // No transcoder found, need to start it
-        if (!this._transcoder.length || this._transcoder.some(e => (!e.getChunkStores)))
-            return res.status(404).send('404 - Transcoder not initialized');
-
         // If track don't exist
         if (track < 0 || track >= this._videoStream.length + this._audioStream.length) {
             return res.status(404).send('404 - Track not found');
         }
 
-        // Chunk is ready or will be ready soon
-        if (!this._transcoder.some(t => (t.canServeFileSoon(track, id)))) {
-            console.log('SEEK REQUIRED', id, track);
+        // Detect if we need to seek
+        const isSeeking = !this._transcoder.some(t => (t.canServeFileSoon(track, id)))
+
+        console.log(`[API] User is asking for chunk ${id} on track ${track}, isSeeking=${isSeeking}`)
+       
+        // Start a new transcoder if needed
+        if (isSeeking) {
             await this.addTranscoder(id);
         }
 
-        // Callback
-        const callback = (x) => {
-            // Remove other callbacks
+        // Callback and retry
+        let cancel = false;
+        let interval = false;
+
+        // Cancel
+        cancel = setTimeout(() => {
+            clearInterval(interval);
             clearTimeout(cancel);
-
-            // Serve file
-            this._transcoder.forEach(transcoder => {
-                this.getChunkStores(track).forEach((chunkStore) => {
-                    chunkStore.waitChunkCancel(id, callback);
-                })
-                transcoder.sendChunkStream(track, id, res);
-            });
-        }
-
-        // Timeout
-        const cancel = setTimeout(() => {
-            this.getChunkStores(track).forEach((chunkStore) => {
-                chunkStore.waitChunkCancel(id, callback);
-            })
             res.status(404).send('404 - Chunk was\'t generated in time');
-        }, 2000);
+        }, 10000);
 
-        // Wait chunk
-        this.getChunkStores(track).forEach((chunkStore) => {
-            chunkStore.waitChunk(id, callback);
-        })
+        // Try to serve the file every 50ms
+        interval = setInterval(() => {
+            if (this.serveChunk(track, id, res)) {
+                clearInterval(interval);
+                clearTimeout(cancel);
+            }
+        }, 50)
     }
 
     async routeSendDashManifest(_, res) {
@@ -122,16 +120,6 @@ export default class Session {
             return res.send(manifest.content);
         }
         return res.status(404).send('404 - It\'s not a HLS session');
-    }
-
-    async start() {
-        const config = await this.getConfig();
-        if (config.protocol === 'HLS' || config.protocol === 'DASH') {
-            if (!this._transcoder.length) {
-                await this.addTranscoder(0);
-            }
-        }
-        return false;
     }
 
     /*stop() {

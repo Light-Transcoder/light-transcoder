@@ -204,7 +204,7 @@ export const canDirectStreamAudio = (metaTrack, supportedMap = {}, maxBitrate = 
         return [false, 'DirectStream not available, player asked for lower audio bitrate'];
     }
     //  Protocol codec support
-    const supportedProtocolCodecs = (supportedMap.type === 'DASH') ? [ /*'mp3',*/ 'aac', 'ac3', 'ec3', 'opus', 'flac', 'vorbis'] : (supportedMap.type === 'HLS') ? ['mp3', 'aac', 'ac3', 'ec3'] : [];
+    const supportedProtocolCodecs = (supportedMap.type === 'DASH') ? [ /*'mp3',*/ 'aac', 'ac3', 'ec3', 'opus', 'flac', 'vorbis'] : (supportedMap.type === 'HLS') ? [/*'mp3',*/ 'aac', 'ac3', 'ec3'] : [];
     if (!compareAudioCodecArray(metaTrack, supportedProtocolCodecs)) {
         return [false, 'DirectStream not available, the streaming protocol don\'t support the audio stream codec'];
     }

@@ -16,30 +16,31 @@ export default class Transcoder {
         this._exec = false;
         this._uuid = uuid();
         this._config = config;
+        this._startChunkAt = parseInt(this._config.startChunkAt, 10);
         this._dir = `${dir}transcoder-${this._uuid}/`;
         this._chunkStores = [];
         this._logParser = false;
 
         // Init all the stores
         (new Array(this._config.streams.length)).fill('').forEach(() => {
-            this._chunkStores.push(new ChunkStore(this._config.startChunkAt));
+            this._chunkStores.push(new ChunkStore());
         })
 
         // Init the log parser
         this._logParser = new FFmpegLogParser({
             protocol: this._config.protocol,
             onChunkStart: (track, id) => {
-                this._chunkStores[track].setChunkStatus(id, 'IN_PROGRESS');
+                this._chunkStores[track].setChunkStatus(id + this._startChunkAt), 'IN_PROGRESS');
             },
             onChunkReady: (track, id) => {
-                this._chunkStores[track].setChunkStatus(id, 'READY');
+                this._chunkStores[track].setChunkStatus(id + this._startChunkAt), 'READY');
             }
         });
     }
 
     canServeFileSoon(track, id) {
-        const lastChunk = (this._chunkStores[track] && this._chunkStores[track].getLastChunkId) ? this._chunkStores[track].getLastChunkId() : this._config.startChunkAt;
-        if (id < this._config.startChunkAt || id > lastChunk + 5)
+        const lastChunk = (this._chunkStores[track] && this._chunkStores[track].getLastChunkId) ? this._chunkStores[track].getLastChunkId() : this.startChunkAt;
+        if (id < this.startChunkAt || id > lastChunk + 5)
             return false;
         return true;
     }
@@ -65,7 +66,7 @@ export default class Transcoder {
         args.push('-codec:0', 'vc1', '-codec:1', 'ac3',)*/
 
         // Seek support
-        args.push('-ss', Math.floor(this._config.startChunkAt * this._config.chunkDuration), '-noaccurate_seek') // Personnal note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
+        args.push('-ss', Math.floor(this.startChunkAt * this._config.chunkDuration), '-noaccurate_seek') // Personnal note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
 
         // Bind inputs
         inputs.forEach(input => {
@@ -177,7 +178,7 @@ export default class Transcoder {
                 // Force keyframes
                 args.push(
                     `-force_key_frames:${idx}`,
-                    `expr:gte(t,${this._config.startChunkAt === 0 ? '' : `${Math.floor(this._config.startChunkAt * this._config.chunkDuration)}+`}n_forced*${this._config.chunkDuration})`
+                    `expr:gte(t,${this.startChunkAt === 0 ? '' : `${Math.floor(this.startChunkAt * this._config.chunkDuration)}+`}n_forced*${this._config.chunkDuration})`
                 );
             }
             // Audio stream
@@ -226,7 +227,7 @@ export default class Transcoder {
                 //'-dash_segment_type',
                 //'mp4',
                 //"-skip_to_segment",
-                //this._config.startChunkAt,
+                //this.startChunkAt,
                 "-avoid_negative_ts",
                 "disabled",
                 "-map_metadata",
@@ -249,7 +250,7 @@ export default class Transcoder {
         args.push(
             '-start_at_zero',
             '-copyts',
-            ...((this._config.startChunkAt === 0) ? [
+            ...((this.startChunkAt === 0) ? [
                 '-vsync',
                 'cfr'
             ] : [])
@@ -273,9 +274,9 @@ export default class Transcoder {
             const stream = this._config.streams[track];
             let path = false;
             if (this._config.protocol === 'HLS') {
-                path = `${this._dir}hls${this._config.startChunkAt + parseInt(id, 10)}.ts`; // Basic HLS chunk
+                path = `${this._dir}hls${this.startChunkAt + parseInt(id, 10)}.ts`; // Basic HLS chunk
             } else if (this._config.protocol === 'DASH' && id !== 'initial') {
-                path = `${this._dir}chunk-stream${track}-${(this._config.startChunkAt + parseInt(id, 10)).toString().padStart(5, '0')}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Basic DASH chunk
+                path = `${this._dir}chunk-stream${track}-${(this.startChunkAt + parseInt(id, 10)).toString().padStart(5, '0')}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Basic DASH chunk
             } else if (this._config.protocol === 'DASH' && id === 'initial') {
                 path = `${this._dir}init-stream${track}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Initial DASH chunk
             }

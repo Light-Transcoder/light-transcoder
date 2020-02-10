@@ -37,7 +37,6 @@ app.post('/media/analyze', async (req, res) => {
 })
 
 app.post('/session', async (req, res) => {
-
     // Todo verify value and check profile / video/audio
     if (typeof (req.body.url) === 'undefined')
         return res.status(400).send('url not found in body');
@@ -49,7 +48,6 @@ app.post('/session', async (req, res) => {
         return res.status(400).send('supported not found in body');
     const profileId = parseInt(req.body.profile, 10);
     const session = new Session(req.body.url, (typeof (req.body.video) === 'undefined') ? [] : [req.body.video], (typeof (req.body.audio) === 'undefined') ? [] : [req.body.audio], profileId, req.body.supported);
-    session.start();
     SessionsArray[session.getUuid()] = session;
     const streamingConfig = await session.getConfig()
     if (['DASH', 'HLS', 'DOWNLOAD'].includes(streamingConfig.protocol)) {
@@ -85,7 +83,7 @@ app.get('/session/:sessionid/dash/:track/:id.*', async (req, res) => {
     const session = SessionsArray[req.params.sessionid];
     if (!session)
         return res.status(404).send('Session not found');
-    await session.routeSendChunk(req.params.track, parseInt(req.params.id, 10) + 1, req, res);
+    await session.routeSendChunk(req.params.track, parseInt(req.params.id, 10), req, res);
 });
 
 app.get('/session/:sessionid/hls/master.m3u8', (req, res) => {

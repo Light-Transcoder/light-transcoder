@@ -17,10 +17,10 @@ export default class Hls {
             headers: [['content-type', 'application/x-mpegURL']],
             content: [
                 '#EXTM3U',
-                '#EXT-X-PLAYLIST-TYPE:VOD',
+               // '#EXT-X-PLAYLIST-TYPE:VOD',
                 '#EXT-X-VERSION:3',
                 `#EXT-X-TARGETDURATION:${this._chunkDuration}`,
-                '#EXT-X-ALLOW-CACHE:YES',
+                //'#EXT-X-ALLOW-CACHE:YES',
                 '#EXT-X-MEDIA-SEQUENCE:0',
                 '#EXT-X-PLAYLIST-TYPE:EVENT',
                 ...Array(this._nbChunks).fill(true).reduce((acc, _, i) => ([
