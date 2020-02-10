@@ -14,25 +14,54 @@ export default class FFmpegLogParser {
         this._onStats = onStats;
 
         this._currentChunks = {};
+        this._logs = []
 
-        this.buffer = '';
+        this._buffer = '';
+    }
+
+    get() {
+        return this._logs;
     }
 
     parse(data) {
-        this.buffer += data;
-        while (this.buffer.indexOf('\n') !== -1) {
-            const endline = this.buffer.indexOf('\n');
-            const line = this.buffer.slice(0, endline + 1);
+        this._buffer += data;
+        while (this._buffer.indexOf('\n') !== -1) {
+            const endline = this._buffer.indexOf('\n');
+            const line = this._buffer.slice(0, endline + 1);
             this._parseLine(line);
-            this.buffer = this.buffer.slice(endline + 1);
+            this._buffer = this._buffer.slice(endline + 1);
         }
     }
 
     _parseLine(data) {
+        this._logs.push(data)
         // ------------------------------ //
         //               HLS              //
         // ------------------------------ //
         if (this._protocol === 'HLS') {
+
+            if (data.includes('Opening') && data.includes('.ts') && data.includes('for writing')) { // Writing chunk started
+                const parsed = (/(.*)hls([0-9]+).ts(.*)/gm).exec(data);
+                if (parsed.length === 4) {
+                    const id = chunkCast(parsed[2]);
+                    this._currentChunks[0] = id;
+                    this._onChunkStart(0, chunkCast(parsed[2]));
+                }
+            }
+            else if (data.includes('segment') && data.includes('.ts') && data.includes('ended')) { // Chunk ready
+                const parsed = (/(.*)hls([0-9]+).ts(.*)/gm).exec(data);
+                if (parsed.length === 4) {
+                    const id = chunkCast(parsed[2]);
+                    this._currentChunks[0] = id;
+                    this._onChunkReady(0, chunkCast(parsed[2]));
+                }
+            }
+        }
+
+        // ------------------------------ //
+        //           HLS LEGACY           //
+        // ------------------------------ //
+        if (this._protocol === 'HLS_LEGACY') {
             if (data.includes('Opening') && data.includes('.m3u8')) { // Manifest update (Previous chunk is ready)
                 this._onChunkReady(0, chunkCast(this._currentChunks[0]));
             }
@@ -41,7 +70,6 @@ export default class FFmpegLogParser {
                 if (parsed.length === 4) {
                     const id = chunkCast(parsed[2]);
                     this._currentChunks[0] = id;
-                    console.log('here', this._currentChunks[0])
                     this._onChunkStart(0, chunkCast(parsed[2]));
                 }
             }

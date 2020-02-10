@@ -30,17 +30,17 @@ export default class Transcoder {
         this._logParser = new FFmpegLogParser({
             protocol: this._config.protocol,
             onChunkStart: (track, id) => {
-                this._chunkStores[track].setChunkStatus(id + this._startChunkAt), 'IN_PROGRESS');
+                this._chunkStores[track].setChunkStatus(id + this._startChunkAt, 'IN_PROGRESS');
             },
             onChunkReady: (track, id) => {
-                this._chunkStores[track].setChunkStatus(id + this._startChunkAt), 'READY');
+                this._chunkStores[track].setChunkStatus(id + this._startChunkAt, 'READY');
             }
         });
     }
 
     canServeFileSoon(track, id) {
-        const lastChunk = (this._chunkStores[track] && this._chunkStores[track].getLastChunkId) ? this._chunkStores[track].getLastChunkId() : this.startChunkAt;
-        if (id < this.startChunkAt || id > lastChunk + 5)
+        const lastChunk = (this._chunkStores[track] && this._chunkStores[track].getLastChunkId) ? this._chunkStores[track].getLastChunkId() : this._startChunkAt;
+        if (id < this._startChunkAt || id > lastChunk + 5)
             return false;
         return true;
     }
@@ -60,13 +60,17 @@ export default class Transcoder {
         // Inputs
         const inputs = [...new Set(this._config.streams.map(e => (e.path)))];
 
-        /* 
-        TODO
-        // Bind codecs
-        args.push('-codec:0', 'vc1', '-codec:1', 'ac3',)*/
+        // TODO: Bind decoders (See: https://github.com/Maxou44/light-transcoder/issues/16)
+        // args.push('-codec:0', 'vc1', '-codec:1', 'ac3',)*/
 
         // Seek support
-        args.push('-ss', Math.floor(this.startChunkAt * this._config.chunkDuration), '-noaccurate_seek') // Personnal note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
+        if (this._startChunkAt) {
+            args.push('-ss', Math.floor(this._startChunkAt * this._config.chunkDuration))
+        }
+
+        // Disable accurate seek
+        // Note: I didn't understand why/when -noaccurate_seek is added, sometimes on Plex, always on Emby
+        args.push('-noaccurate_seek');
 
         // Bind inputs
         inputs.forEach(input => {
@@ -170,6 +174,8 @@ export default class Transcoder {
                         stream.framerate,
                         `-preset:${idx}`,
                         stream.codec.options.x264preset,
+                        /* "-level:0",
+                        "5.1", */
                         `-x264opts:${idx}`,
                         `subme=${stream.codec.options.x264subme}:me_range=4:rc_lookahead=10:me=dia:no_chroma_me:8x8dct=0:partitions=none`,
                     );
@@ -178,7 +184,7 @@ export default class Transcoder {
                 // Force keyframes
                 args.push(
                     `-force_key_frames:${idx}`,
-                    `expr:gte(t,${this.startChunkAt === 0 ? '' : `${Math.floor(this.startChunkAt * this._config.chunkDuration)}+`}n_forced*${this._config.chunkDuration})`
+                    `expr:gte(t,${this._startChunkAt === 0 ? '' : `${Math.floor(this._startChunkAt * this._config.chunkDuration)}+`}n_forced*${this._config.chunkDuration})`
                 );
             }
             // Audio stream
@@ -206,6 +212,35 @@ export default class Transcoder {
         // HLS output params
         if (this._config.protocol === 'HLS') {
             args.push(
+                "-f",
+                "segment",
+                "-individual_header_trailer",
+                "0",
+                "-segment_time",
+                this._config.chunkDuration,
+                "-segment_start_number",
+                "0",
+                "-segment_time_delta",
+                "0.0625",
+                //Math.floor(this._startChunkAt * this._config.chunkDuration), // Emby put nb sec, plex put "0.0625",*/
+                '-break_non_keyframes',
+                '1',
+                '-segment_format',
+                'mpegts',
+                "-max_delay",
+                Math.floor(this._config.chunkDuration * 1000000),
+                "-avoid_negative_ts",
+                "disabled",
+                '-map_metadata',
+                '-1',
+                '-map_chapters',
+                '-1',
+                "hls%d.ts",
+            );
+        }
+        // HLS output params
+        else if (this._config.protocol === 'HLS_LEGACY') {
+            args.push(
                 '-f',
                 'hls',
                 '-hls_time',
@@ -227,7 +262,7 @@ export default class Transcoder {
                 //'-dash_segment_type',
                 //'mp4',
                 //"-skip_to_segment",
-                //this.startChunkAt,
+                //this._startChunkAt,
                 "-avoid_negative_ts",
                 "disabled",
                 "-map_metadata",
@@ -250,7 +285,7 @@ export default class Transcoder {
         args.push(
             '-start_at_zero',
             '-copyts',
-            ...((this.startChunkAt === 0) ? [
+            ...((this._startChunkAt === 0) ? [
                 '-vsync',
                 'cfr'
             ] : [])
@@ -274,9 +309,9 @@ export default class Transcoder {
             const stream = this._config.streams[track];
             let path = false;
             if (this._config.protocol === 'HLS') {
-                path = `${this._dir}hls${this.startChunkAt + parseInt(id, 10)}.ts`; // Basic HLS chunk
+                path = `${this._dir}hls${parseInt(id, 10) - this._startChunkAt}.ts`; // Basic HLS chunk
             } else if (this._config.protocol === 'DASH' && id !== 'initial') {
-                path = `${this._dir}chunk-stream${track}-${(this.startChunkAt + parseInt(id, 10)).toString().padStart(5, '0')}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Basic DASH chunk
+                path = `${this._dir}chunk-stream${track}-${(parseInt(id, 10) - this._startChunkAt).toString().padStart(5, '0')}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Basic DASH chunk
             } else if (this._config.protocol === 'DASH' && id === 'initial') {
                 path = `${this._dir}init-stream${track}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Initial DASH chunk
             }
@@ -301,7 +336,11 @@ export default class Transcoder {
             const args = this.getCommand();
             console.log(`${binary} ${args.map((a) => (`'${a}'`)).join(' ')} `);
             this._exec = execFile(binary, [...args], { cwd: this._dir });
-            const end = () => {
+            const end = (status) => {
+                if (status !== 0) {
+                    console.log(this._logParser.get());
+                }
+
                 /* resolve({
                      binary,
                      args,
@@ -311,7 +350,7 @@ export default class Transcoder {
                  });*/
             };
             this._exec.stdout.on('data', (data) => {
-                stdout += data;
+                this._logParser.parse(data);
             });
             this._exec.stderr.on('data', (data) => {
                 this._logParser.parse(data);
