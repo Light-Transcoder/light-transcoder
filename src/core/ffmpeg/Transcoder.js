@@ -30,10 +30,10 @@ export default class Transcoder {
         this._logParser = new FFmpegLogParser({
             protocol: this._config.protocol,
             onChunkStart: (track, id) => {
-                this._chunkStores[track].setChunkStatus(id + this._startChunkAt, 'IN_PROGRESS');
+                this._chunkStores[track].setChunkStatus((this._config.protocol === 'DASH') ? id + this._startChunkAt : id, 'IN_PROGRESS');
             },
             onChunkReady: (track, id) => {
-                this._chunkStores[track].setChunkStatus(id + this._startChunkAt, 'READY');
+                this._chunkStores[track].setChunkStatus((this._config.protocol === 'DASH') ? id + this._startChunkAt : id, 'READY');
             }
         });
     }
@@ -212,29 +212,33 @@ export default class Transcoder {
         // HLS output params
         if (this._config.protocol === 'HLS') {
             args.push(
+                '-segment_format',
+                'mpegts',
                 "-f",
-                "segment",
+                "ssegment",
                 "-individual_header_trailer",
-                "0",
+                "1",
                 "-segment_time",
                 this._config.chunkDuration,
                 "-segment_start_number",
-                "0",
+                this._startChunkAt,
+                //"-segment_copyts",
+                //"1",
                 "-segment_time_delta",
                 "0.0625",
                 //Math.floor(this._startChunkAt * this._config.chunkDuration), // Emby put nb sec, plex put "0.0625",*/
-                '-break_non_keyframes',
-                '1',
-                '-segment_format',
-                'mpegts',
+               /* '-break_non_keyframes',
+                '1',  => Create async issue */
+                //"-max_delay",
+                //Math.floor(this._config.chunkDuration * 1000000),
                 "-max_delay",
-                Math.floor(this._config.chunkDuration * 1000000),
+                "5000000",
                 "-avoid_negative_ts",
                 "disabled",
-                '-map_metadata',
-                '-1',
-                '-map_chapters',
-                '-1',
+                // '-map_metadata',
+                // '-1',
+                //  '-map_chapters',
+                // '-1',
                 "hls%d.ts",
             );
         }
@@ -309,7 +313,7 @@ export default class Transcoder {
             const stream = this._config.streams[track];
             let path = false;
             if (this._config.protocol === 'HLS') {
-                path = `${this._dir}hls${parseInt(id, 10) - this._startChunkAt}.ts`; // Basic HLS chunk
+                path = `${this._dir}hls${parseInt(id, 10)}.ts`; // Basic HLS chunk
             } else if (this._config.protocol === 'DASH' && id !== 'initial') {
                 path = `${this._dir}chunk-stream${track}-${(parseInt(id, 10) - this._startChunkAt).toString().padStart(5, '0')}.${stream.codec.chunkFormat === 'webm' ? 'webm' : 'm4s'}`; // Basic DASH chunk
             } else if (this._config.protocol === 'DASH' && id === 'initial') {
@@ -338,7 +342,7 @@ export default class Transcoder {
             this._exec = execFile(binary, [...args], { cwd: this._dir });
             const end = (status) => {
                 if (status !== 0) {
-                    console.log(this._logParser.get());
+                    console.log(this._logParser.get().join('\n'));
                 }
 
                 /* resolve({
