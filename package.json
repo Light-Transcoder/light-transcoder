@@ -16,7 +16,7 @@
     "express": "4.17.1",
     "ffmpeg-static": "3.0.0",
     "ffprobe-static": "3.0.0",
-    "mkdirp": "0.5.1",
+    "mkdirp": "0.5.6",
     "uuid": "3.4.0"
   }
 }
